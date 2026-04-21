@@ -57,67 +57,60 @@
         
         .board { flex-grow: 1; padding: 20px; overflow-y: auto; }
         
+        /* GRILLE : Mission, Destination, Temps (milieu), Voie (fin) */
         .row { 
             display: grid; 
             grid-template-columns: 100px 1fr 200px 100px; 
             align-items: center; 
-            padding: 18px 0; 
+            padding: 15px 0; 
             border-bottom: 2px solid #ddd; 
         }
         
         .mission { background: #ddd; padding: 6px; border-radius: 4px; text-align: center; font-weight: bold; font-family: monospace; font-size: 16px; }
         .dest { font-size: 28px; font-weight: 700; text-transform: uppercase; padding-left: 15px; }
         
-        /* TEMPS D'ATTENTE : Hauteur fixe pour servir de référence */
+        /* RECTANGLE NOIR (TEMPS) */
         .time { 
             background: var(--dark); 
             color: var(--yellow); 
             border-radius: 8px; 
             text-align: center; 
-            height: 70px; /* Hauteur de référence */
-            width: 170px;
+            width: 160px;
+            height: 60px; /* Hauteur fixe pour référence */
             display: flex;
             flex-direction: column;
             justify-content: center;
             align-items: center;
             justify-self: center;
-            box-sizing: border-box;
         }
-        .time .val { font-size: 38px; font-weight: bold; display: block; line-height: 0.8; }
-        .time .unit { font-size: 14px; margin-top: 4px; }
-        .time .full-text { font-size: 18px; font-weight: bold; line-height: 1.1; text-transform: uppercase; }
+        .time .val { font-size: 34px; font-weight: bold; display: block; line-height: 0.8; }
+        .time .unit { font-size: 13px; margin-top: 2px; }
+        .time .full-text { font-size: 16px; font-weight: bold; line-height: 1.1; text-transform: uppercase; padding: 0 5px; }
 
-        /* VOIE : Carré de taille identique à la hauteur du temps */
+        /* CARRÉ GRIS (VOIE) */
         .platform { 
             display: flex;
-            justify-content: flex-end;
-            padding-right: 10px;
+            justify-content: center;
+            border-left: 1px solid #ccc; 
+            padding-left: 10px;
         }
         .platform-box {
             background: var(--grey-bg);
             border: 2.5px solid var(--grey-border);
             border-radius: 8px;
-            height: 70px; /* Identique à .time */
-            width: 70px;  /* Strictement carré */
+            /* Dimensions égales à la hauteur du rectangle noir */
+            width: 60px; 
+            height: 60px;
             display: flex;
-            flex-direction: column;
-            justify-content: center;
+            flex-direction: column; /* Texte l'un sous l'autre */
             align-items: center;
+            justify-content: center;
             box-sizing: border-box;
-        }
-        .platform-box .label {
-            font-size: 10px;
-            text-transform: uppercase;
-            font-weight: bold;
-            color: var(--grey-border);
-            margin-bottom: -2px;
-        }
-        .platform-box .num {
-            font-size: 34px;
-            font-weight: 900;
             color: var(--dark);
             line-height: 1;
         }
+        .platform-text { font-size: 11px; text-transform: uppercase; font-weight: bold; margin-bottom: 2px; }
+        .platform-num { font-size: 24px; font-weight: 900; }
 
         footer { background: #333; color: #0f0; padding: 10px 20px; font-family: monospace; font-size: 11px; }
     </style>
@@ -139,7 +132,7 @@
 </header>
 
 <div class="board" id="board">
-    <div style="text-align:center; margin-top:100px; color:#999;" id="status">Calcul des dimensions...</div>
+    <div style="text-align:center; margin-top:100px; color:#999;" id="status">Chargement...</div>
 </div>
 
 <footer id="debug">Prêt.</footer>
@@ -230,8 +223,8 @@
                     <div class="time">${timeHTML}</div>
                     <div class="platform">
                         <div class="platform-box">
-                            <span class="label">Voie</span>
-                            <span class="num">${platform}</span>
+                            <span class="platform-text">Quai</span>
+                            <span class="platform-num">${platform}</span>
                         </div>
                     </div>
                 </div>`;

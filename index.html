@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <title>SIEL RER A - Joinville-le-Pont</title>
+    <link href="https://fonts.googleapis.com/css2?family=Cabin:wght@700&display=swap" rel="stylesheet">
+    <style>
+        :root { --red: #c0333a; --dark: #222; --yellow: #fbc02d; }
+        body { background: #f5f5f5; font-family: 'Cabin', sans-serif; margin: 0; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
+        header { background: white; padding: 15px 25px; display: flex; justify-content: space-between; align-items: center; border-bottom: 8px solid var(--red); }
+        .logo-a { background: var(--red); border-radius: 12px; width: 60px; height: 60px; display: flex; align-items: center; justify-content: center; font-size: 40px; font-weight: 900; color: white; }
+        .clock { background: var(--dark); color: white; padding: 10px 20px; border-radius: 8px; font-size: 28px; }
+        .board { flex-grow: 1; padding: 20px; overflow-y: auto; }
+        .row { display: grid; grid-template-columns: 100px 1fr 130px; align-items: center; padding: 18px 0; border-bottom: 2px solid #ddd; }
+        .mission { background: #ddd; padding: 5px; border-radius: 4px; text-align: center; font-weight: bold; font-family: monospace; }
+        .dest { font-size: 26px; font-weight: 700; text-transform: uppercase; padding-left: 15px; }
+        .time { background: var(--dark); color: var(--yellow); border-radius: 6px; text-align: center; padding: 8px; min-width: 90px; }
+        .time .val { font-size: 32px; font-weight: bold; display: block; line-height: 0.8; }
+        footer { background: #333; color: #0f0; padding: 10px 20px; font-family: monospace; font-size: 11px; }
+    </style>
+</head>
+<body>
+
+<header>
+    <div style="display:flex; align-items:center;">
+        <div class="logo-a">A</div>
+        <div style="margin-left:15px;">
+            <div style="font-size:24px; font-weight:bold;">JOINVILLE-LE-PONT</div>
+            <div style="font-size:14px; color:var(--red)">DIRECTION PARIS / OUEST (TEMPS RÉEL)</div>
+        </div>
+    </div>
+    <div class="clock" id="clock">--:--</div>
+</header>
+
+<div class="board" id="board">
+    <div style="text-align:center; margin-top:100px; color:#999;" id="status">Chargement du flux certifié...</div>
+</div>
+
+<footer id="debug">Prêt.</footer>
+
+<script>
+    const API_KEY = '2pz4kMqzVx2zneQWOTnOrqM6muPE1XVO';
+    
+    // L'ID gagnant du diagnostic (Zone de Correspondance)
+    const MONITORING_REF = 'STIF:StopArea:SP:70640:'; 
+
+    function updateClock() {
+        document.getElementById('clock').innerText = new Date().toLocaleTimeString('fr-FR', {hour: '2-digit', minute:'2-digit'});
+    }
+
+    async function fetchSchedules() {
+        const debug = document.getElementById('debug');
+        const board = document.getElementById('board');
+        
+        const url = `https://prim.iledefrance-mobilites.fr/marketplace/stop-monitoring?MonitoringRef=${MONITORING_REF}`;
+        const proxy = `https://corsproxy.io/?${encodeURIComponent(url)}`;
+
+        try {
+            const response = await fetch(proxy, {
+                method: 'GET',
+                headers: { 
+                    'apiKey': API_KEY, // Authentification Slide 13
+                    'Accept': 'application/json' 
+                }
+            });
+
+            if (!response.ok) throw new Error("Erreur " + response.status);
+
+            const data = await response.json();
+            const visits = data.Siri?.ServiceDelivery?.StopMonitoringDelivery?.[0]?.MonitoredStopVisit || [];
+
+            if (visits.length > 0) {
+                render(visits);
+                debug.innerText = `> Flux OK (${visits.length} trains) - ${new Date().toLocaleTimeString()}`;
+            } else {
+                debug.innerText = "> Connecté, mais aucun train trouvé.";
+                board.innerHTML = '<div style="text-align:center;margin-top:100px;color:#999;">Aucun train détecté en temps réel.</div>';
+            }
+
+        } catch (e) {
+            debug.innerText = "> ÉCHEC : " + e.message;
+        }
+    }
+
+    function render(visits) {
+        const board = document.getElementById('board');
+        const now = new Date();
+        const seen = new Set();
+        
+        let trains = visits
+            .map(v => v.MonitoredVehicleJourney)
+            .filter(j => {
+                // On s'assure que c'est le RER A (on ignore les bus de la zone)
+                const line = j.LineRef?.value || "";
+                if (!line.includes('C01742') && line !== 'A') return false;
+
+                // Élimination des doublons
+                const ref = j.FramedVehicleJourneyRef?.DatedVehicleJourneyRef || j.TrainNumber?.value;
+                if (seen.has(ref)) return false;
+                seen.add(ref);
+
+                // Direction Paris / Ouest (on exclut les terminus Est)
+                const dest = j.DestinationName[0].value.toLowerCase();
+                return !dest.includes('boissy') && !dest.includes('varenne');
+            })
+            .sort((a, b) => {
+                const tA = new Date(a.MonitoredCall.ExpectedDepartureTime || a.MonitoredCall.AimedDepartureTime);
+                const tB = new Date(b.MonitoredCall.ExpectedDepartureTime || b.MonitoredCall.AimedDepartureTime);
+                return tA - tB;
+            });
+
+        if (trains.length === 0) {
+            board.innerHTML = '<div style="text-align:center;margin-top:100px;color:#999;">Aucun train RER A vers Paris trouvé dans le flux.</div>';
+            return;
+        }
+
+        let html = '';
+        trains.slice(0, 7).forEach(j => {
+            const dest = j.DestinationName[0].value.toUpperCase().replace('GARE DE ', '').trim();
+            const mission = j.JourneyNote?.[0]?.value || j.PublishedLineName?.[0]?.value || "----";
+            const time = new Date(j.MonitoredCall.ExpectedDepartureTime || j.MonitoredCall.AimedDepartureTime);
+            const diff = Math.round((time - now) / 60000);
+
+            html += `
+                <div class="row">
+                    <div class="mission">${mission}</div>
+                    <div class="dest">${dest}</div>
+                    <div class="time">
+                        <span class="val">${diff <= 0 ? 'À' : diff}</span>
+                        <span style="font-size:12px">${diff <= 0 ? 'approche' : 'min'}</span>
+                    </div>
+                </div>`;
+        });
+        board.innerHTML = html;
+    }
+
+    setInterval(updateClock, 1000);
+    updateClock();
+    fetchSchedules();
+    setInterval(fetchSchedules, 30000);
+</script>
+</body>
+</html>

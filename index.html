@@ -5,28 +5,87 @@
     <title>SIEL RER A - Joinville-le-Pont</title>
     <link href="https://fonts.googleapis.com/css2?family=Cabin:wght@700&display=swap" rel="stylesheet">
     <style>
-        :root { --red: #c0333a; --dark: #222; --yellow: #fbc02d; }
+        :root { 
+            --red-a: #c0333a; 
+            --blue-rer: #0055c8;
+            --dark: #222; 
+            --yellow: #fbc02d; 
+        }
         body { background: #f5f5f5; font-family: 'Cabin', sans-serif; margin: 0; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
-        header { background: white; padding: 15px 25px; display: flex; justify-content: space-between; align-items: center; border-bottom: 8px solid var(--red); }
-        .logo-a { background: var(--red); border-radius: 12px; width: 60px; height: 60px; display: flex; align-items: center; justify-content: center; font-size: 40px; font-weight: 900; color: white; }
+        
+        /* HEADER AVEC LOGOS */
+        header { background: white; padding: 10px 25px; display: flex; justify-content: space-between; align-items: center; border-bottom: 8px solid var(--red-a); }
+        
+        .header-left { display: flex; align-items: center; }
+        
+        .logos-container { display: flex; gap: 10px; align-items: center; }
+        
+        .logo-rer {
+            background: var(--blue-rer);
+            border-radius: 50%;
+            width: 45px;
+            height: 45px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+            font-weight: 900;
+            color: white;
+        }
+        
+        .logo-a {
+            background: var(--red-a);
+            border-radius: 10px;
+            width: 45px;
+            height: 45px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 32px;
+            font-weight: 900;
+            color: white;
+        }
+        
+        .station-info { margin-left: 20px; }
+        .station-name { font-size: 24px; font-weight: bold; line-height: 1; }
+        .direction-info { font-size: 14px; color: var(--red-a); margin-top: 4px; }
+        
         .clock { background: var(--dark); color: white; padding: 10px 20px; border-radius: 8px; font-size: 28px; }
+        
+        /* TABLEAU DE BORD */
         .board { flex-grow: 1; padding: 20px; overflow-y: auto; }
-        .row { display: grid; grid-template-columns: 100px 1fr 150px; align-items: center; padding: 18px 0; border-bottom: 2px solid #ddd; }
+        
+        .row { 
+            display: grid; 
+            grid-template-columns: 100px 1fr 100px 160px; 
+            align-items: center; 
+            padding: 18px 0; 
+            border-bottom: 2px solid #ddd; 
+        }
+        
         .mission { background: #ddd; padding: 5px; border-radius: 4px; text-align: center; font-weight: bold; font-family: monospace; }
         .dest { font-size: 26px; font-weight: 700; text-transform: uppercase; padding-left: 15px; }
         
+        .platform {
+            text-align: center;
+            border-left: 1px solid #ccc;
+        }
+        .platform-label { font-size: 10px; text-transform: uppercase; color: #999; display: block; }
+        .platform-num { font-weight: bold; font-size: 28px; color: var(--dark); }
+
         .time { 
             background: var(--dark); 
             color: var(--yellow); 
             border-radius: 6px; 
             text-align: center; 
             padding: 8px; 
-            min-width: 120px;
-            min-height: 45px;
+            min-width: 140px;
+            min-height: 50px;
             display: flex;
             flex-direction: column;
             justify-content: center;
             align-items: center;
+            margin-left: 15px;
         }
         .time .val { font-size: 32px; font-weight: bold; display: block; line-height: 0.8; }
         .time .unit { font-size: 12px; }
@@ -38,18 +97,21 @@
 <body>
 
 <header>
-    <div style="display:flex; align-items:center;">
-        <div class="logo-a">A</div>
-        <div style="margin-left:15px;">
-            <div style="font-size:24px; font-weight:bold;">JOINVILLE-LE-PONT</div>
-            <div style="font-size:14px; color:var(--red)">DIRECTION PARIS / OUEST</div>
+    <div class="header-left">
+        <div class="logos-container">
+            <div class="logo-rer">RER</div>
+            <div class="logo-a">A</div>
+        </div>
+        <div class="station-info">
+            <div class="station-name">JOINVILLE-LE-PONT</div>
+            <div class="direction-info">DIRECTION PARIS / OUEST</div>
         </div>
     </div>
     <div class="clock" id="clock">--:--</div>
 </header>
 
 <div class="board" id="board">
-    <div style="text-align:center; margin-top:100px; color:#999;" id="status">Chargement du flux...</div>
+    <div style="text-align:center; margin-top:100px; color:#999;" id="status">Initialisation du flux...</div>
 </div>
 
 <footer id="debug">Prêt.</footer>
@@ -121,18 +183,15 @@
             const time = new Date(j.MonitoredCall.ExpectedDepartureTime || j.MonitoredCall.AimedDepartureTime);
             const diff = Math.round((time - now) / 60000);
             
-            // --- NOUVELLE LOGIQUE D'AFFICHAGE ---
+            const platform = j.MonitoredCall.DeparturePlatformName || "2";
             const isAtStop = j.MonitoredCall.VehicleAtStop === true || j.MonitoredCall.VehicleAtStop === "true";
 
             let timeHTML = '';
             if (isAtStop) {
-                // Si le train est à quai
                 timeHTML = `<span class="full-text">À quai</span>`;
             } else if (diff <= 0) {
-                // Si le train arrive
                 timeHTML = `<span class="full-text">À l'approche</span>`;
             } else {
-                // Affichage des minutes
                 timeHTML = `<span class="val">${diff}</span><span class="unit">min</span>`;
             }
 
@@ -140,6 +199,10 @@
                 <div class="row">
                     <div class="mission">${mission}</div>
                     <div class="dest">${dest}</div>
+                    <div class="platform">
+                        <span class="platform-label">Voie</span>
+                        <span class="platform-num">${platform}</span>
+                    </div>
                     <div class="time">${timeHTML}</div>
                 </div>`;
         });

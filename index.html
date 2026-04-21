@@ -11,19 +11,18 @@
         .logo-a { background: var(--red); border-radius: 12px; width: 60px; height: 60px; display: flex; align-items: center; justify-content: center; font-size: 40px; font-weight: 900; color: white; }
         .clock { background: var(--dark); color: white; padding: 10px 20px; border-radius: 8px; font-size: 28px; }
         .board { flex-grow: 1; padding: 20px; overflow-y: auto; }
-        .row { display: grid; grid-template-columns: 100px 1fr 130px; align-items: center; padding: 18px 0; border-bottom: 2px solid #ddd; }
+        .row { display: grid; grid-template-columns: 100px 1fr 150px; align-items: center; padding: 18px 0; border-bottom: 2px solid #ddd; }
         .mission { background: #ddd; padding: 5px; border-radius: 4px; text-align: center; font-weight: bold; font-family: monospace; }
         .dest { font-size: 26px; font-weight: 700; text-transform: uppercase; padding-left: 15px; }
         
-        /* Ajustement de la boîte de temps */
         .time { 
             background: var(--dark); 
             color: var(--yellow); 
             border-radius: 6px; 
             text-align: center; 
             padding: 8px; 
-            min-width: 100px;
-            min-height: 40px;
+            min-width: 120px;
+            min-height: 45px;
             display: flex;
             flex-direction: column;
             justify-content: center;
@@ -31,8 +30,7 @@
         }
         .time .val { font-size: 32px; font-weight: bold; display: block; line-height: 0.8; }
         .time .unit { font-size: 12px; }
-        /* Style spécial pour le message uniforme */
-        .time .full-text { font-size: 18px; font-weight: bold; line-height: 1.1; }
+        .time .full-text { font-size: 16px; font-weight: bold; line-height: 1.1; text-transform: uppercase; }
 
         footer { background: #333; color: #0f0; padding: 10px 20px; font-family: monospace; font-size: 11px; }
     </style>
@@ -92,13 +90,23 @@
         let trains = visits
             .map(v => v.MonitoredVehicleJourney)
             .filter(j => {
+                // 1. Filtre Ligne A
                 const line = j.LineRef?.value || "";
                 if (!line.includes('C01742') && line !== 'A') return false;
-                const ref = j.FramedVehicleJourneyRef?.DatedVehicleJourneyRef || j.TrainNumber?.value;
-                if (seen.has(ref)) return false;
-                seen.add(ref);
-                const dest = j.DestinationName[0].value.toLowerCase();
-                return !dest.includes('boissy') && !dest.includes('varenne');
+
+                // 2. CLÉ DE DÉDUPLICATION RENFORCÉE
+                // On utilise la destination + l'heure théorique (AimedDepartureTime)
+                // C'est l'unique moyen d'être sûr que c'est le même train physique
+                const aimedTime = j.MonitoredCall.AimedDepartureTime;
+                const destName = j.DestinationName[0].value;
+                const uniqueKey = `${destName}_${aimedTime}`;
+
+                if (seen.has(uniqueKey)) return false;
+                seen.add(uniqueKey);
+
+                // 3. Filtre Direction Paris
+                const d = destName.toLowerCase();
+                return !d.includes('boissy') && !d.includes('varenne');
             })
             .sort((a, b) => {
                 const tA = new Date(a.MonitoredCall.ExpectedDepartureTime || a.MonitoredCall.AimedDepartureTime);
@@ -107,7 +115,7 @@
             });
 
         if (trains.length === 0) {
-            board.innerHTML = '<div style="text-align:center;margin-top:100px;color:#999;">Aucun train détecté.</div>';
+            board.innerHTML = '<div style="text-align:center;margin-top:100px;color:#999;">Aucun train détecté vers Paris.</div>';
             return;
         }
 
@@ -118,13 +126,11 @@
             const time = new Date(j.MonitoredCall.ExpectedDepartureTime || j.MonitoredCall.AimedDepartureTime);
             const diff = Math.round((time - now) / 60000);
 
-            // LOGIQUE DE L'AFFICHAGE DU TEMPS
             let timeHTML = '';
             if (diff <= 0) {
-                // Si à l'approche : texte uniforme
+                // Affichage uniforme pour "À l'approche"
                 timeHTML = `<span class="full-text">À l'approche</span>`;
             } else {
-                // Si minutes : Chiffre en gros et "min" en petit
                 timeHTML = `<span class="val">${diff}</span><span class="unit">min</span>`;
             }
 

@@ -49,30 +49,16 @@
         
         .station-info { margin-left: 15px; }
         .station-name { font-size: 26px; font-weight: bold; line-height: 1; letter-spacing: -0.5px; color: var(--dark); }
+        .direction-info { font-size: 16px; color: var(--red-a); margin-top: 4px; font-weight: bold; letter-spacing: -0.2px; }
         
-        /* Style mis à jour pour la direction détaillée */
-        .direction-info { 
-            font-size: 16px; 
-            color: var(--red-a); 
-            margin-top: 4px; 
-            font-weight: bold;
-            letter-spacing: -0.2px;
-        }
-        
-        .clock { 
-            background: var(--dark); 
-            color: var(--yellow); 
-            padding: 10px 22px; 
-            border-radius: 8px; 
-            font-size: 28px; 
-            font-weight: bold; 
-        }
+        .clock { background: var(--dark); color: var(--yellow); padding: 10px 22px; border-radius: 8px; font-size: 28px; font-weight: bold; }
         
         .board { flex-grow: 1; padding: 20px; overflow-y: auto; }
         
+        /* GRILLE MISE À JOUR : Mission, Destination, Temps (180px), Voie (100px) */
         .row { 
             display: grid; 
-            grid-template-columns: 100px 1fr 100px 180px; 
+            grid-template-columns: 100px 1fr 180px 100px; 
             align-items: center; 
             padding: 18px 0; 
             border-bottom: 2px solid #ddd; 
@@ -81,13 +67,7 @@
         .mission { background: #ddd; padding: 6px; border-radius: 4px; text-align: center; font-weight: bold; font-family: monospace; font-size: 16px; }
         .dest { font-size: 28px; font-weight: 700; text-transform: uppercase; padding-left: 15px; }
         
-        .platform {
-            text-align: center;
-            border-left: 1px solid #ccc;
-        }
-        .platform-label { font-size: 11px; text-transform: uppercase; color: #888; display: block; margin-bottom: -4px; }
-        .platform-num { font-weight: bold; font-size: 30px; color: var(--dark); }
-
+        /* Temps d'attente au milieu */
         .time { 
             background: var(--dark); 
             color: var(--yellow); 
@@ -100,11 +80,20 @@
             flex-direction: column;
             justify-content: center;
             align-items: center;
-            margin-left: 15px;
+            justify-self: center; /* Centre la boîte dans sa colonne */
         }
         .time .val { font-size: 36px; font-weight: bold; display: block; line-height: 0.8; }
         .time .unit { font-size: 14px; margin-top: 2px; }
         .time .full-text { font-size: 18px; font-weight: bold; line-height: 1.1; text-transform: uppercase; }
+
+        /* Voie déplacée à la fin */
+        .platform { 
+            text-align: center; 
+            border-left: 1px solid #ccc; 
+            padding-left: 10px;
+        }
+        .platform-label { font-size: 11px; text-transform: uppercase; color: #888; display: block; margin-bottom: -4px; }
+        .platform-num { font-weight: bold; font-size: 30px; color: var(--dark); }
 
         footer { background: #333; color: #0f0; padding: 10px 20px; font-family: monospace; font-size: 11px; }
     </style>
@@ -170,14 +159,11 @@
             .filter(j => {
                 const line = j.LineRef?.value || "";
                 if (!line.includes('C01742') && line !== 'A') return false;
-
                 const aimedTime = j.MonitoredCall.AimedDepartureTime;
                 const destName = j.DestinationName[0].value;
                 const uniqueKey = `${destName}_${aimedTime}`;
-
                 if (seen.has(uniqueKey)) return false;
                 seen.add(uniqueKey);
-
                 const d = destName.toLowerCase();
                 return !d.includes('boissy') && !d.includes('varenne');
             })
@@ -199,7 +185,9 @@
             const time = new Date(j.MonitoredCall.ExpectedDepartureTime || j.MonitoredCall.AimedDepartureTime);
             const diff = Math.round((time - now) / 60000);
             
-            const platform = j.MonitoredCall.DeparturePlatformName || "2";
+            const platformData = j.MonitoredCall.DeparturePlatformName;
+            const platform = (platformData && typeof platformData === 'object') ? platformData.value : (platformData || "2");
+            
             const isAtStop = j.MonitoredCall.VehicleAtStop === true || j.MonitoredCall.VehicleAtStop === "true";
 
             let timeHTML = '';
@@ -211,15 +199,16 @@
                 timeHTML = `<span class="val">${diff}</span><span class="unit">min</span>`;
             }
 
+            // ORDRE INVERSÉ : Temps au milieu, Voie à la fin
             html += `
                 <div class="row">
                     <div class="mission">${mission}</div>
                     <div class="dest">${dest}</div>
+                    <div class="time">${timeHTML}</div>
                     <div class="platform">
                         <span class="platform-label">Voie</span>
                         <span class="platform-num">${platform}</span>
                     </div>
-                    <div class="time">${timeHTML}</div>
                 </div>`;
         });
         board.innerHTML = html;

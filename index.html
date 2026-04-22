@@ -51,9 +51,15 @@
         .mission { background: #ddd; padding: 6px; border-radius: 4px; text-align: center; font-weight: bold; font-family: monospace; font-size: 16px; }
         .dest { font-size: 28px; font-weight: 700; padding-left: 15px; color: var(--dark); }
         
-        @keyframes updatePop {
-            0% { opacity: 0; transform: scale(0.95); }
-            100% { opacity: 1; transform: scale(1); }
+        /* --- ANIMATION DU TEXTE UNIQUEMENT --- */
+        @keyframes slideIn {
+            0% { transform: translateY(10px); opacity: 0; }
+            100% { transform: translateY(0); opacity: 1; }
+        }
+
+        .animate-text {
+            display: inline-block;
+            animation: slideIn 0.5s ease-out;
         }
 
         .time { 
@@ -68,25 +74,20 @@
             justify-content: center;
             align-items: center;
             justify-self: center;
-            animation: updatePop 0.6s ease-out;
+            overflow: hidden; /* Pour couper l'entrée du texte */
         }
         .time .val { font-size: 34px; font-weight: bold; display: block; line-height: 0.8; }
         .time .unit { font-size: 13px; margin-top: 2px; }
         .time .full-text { font-size: 16px; font-weight: bold; line-height: 1.1; text-transform: uppercase; padding: 0 5px; }
 
         .platform { 
-            display: flex;
-            justify-content: center;
-            border-left: 1px solid #ccc; 
-            padding-left: 10px;
+            display: flex; justify-content: center; border-left: 1px solid #ccc; padding-left: 10px;
         }
         .platform-box {
-            background: var(--grey-bg);
-            border: 2.5px solid var(--grey-border);
-            border-radius: 8px;
-            width: 60px; height: 60px;
-            display: flex; flex-direction: column; align-items: center; justify-content: center;
-            box-sizing: border-box; color: var(--dark); line-height: 1;
+            background: var(--grey-bg); border: 2.5px solid var(--grey-border); border-radius: 8px;
+            width: 60px; height: 60px; display: flex; flex-direction: column; 
+            align-items: center; justify-content: center; box-sizing: border-box; 
+            color: var(--dark); line-height: 1;
         }
         .platform-text { font-size: 11px; text-transform: uppercase; font-weight: bold; margin-bottom: 2px; }
         .platform-num { font-size: 24px; font-weight: 900; }
@@ -111,7 +112,7 @@
 </header>
 
 <div class="board" id="board">
-    <div style="text-align:center; margin-top:100px; color:#999;" id="status">Chargement...</div>
+    <div style="text-align:center; margin-top:100px; color:#999;">Initialisation...</div>
 </div>
 
 <footer id="debug">Prêt.</footer>
@@ -119,10 +120,12 @@
 <script>
     const API_KEY = '2pz4kMqzVx2zneQWOTnOrqM6muPE1XVO';
     const MONITORING_REF = 'STIF:StopArea:SP:70640:'; 
+    
+    // Mémoire pour stocker les temps précédents
+    let lastTimes = {};
 
     function updateClock() {
-        const now = new Date();
-        document.getElementById('clock').innerText = now.toLocaleTimeString('fr-FR', {hour: '2-digit', minute:'2-digit'});
+        document.getElementById('clock').innerText = new Date().toLocaleTimeString('fr-FR', {hour: '2-digit', minute:'2-digit'});
     }
 
     function formatDestination(text) {
@@ -146,7 +149,6 @@
                 method: 'GET',
                 headers: { 'apiKey': API_KEY, 'Accept': 'application/json' }
             });
-            if (!response.ok) throw new Error("Erreur " + response.status);
             const data = await response.json();
             const visits = data.Siri?.ServiceDelivery?.StopMonitoringDelivery?.[0]?.MonitoredStopVisit || [];
             render(visits);
@@ -171,8 +173,7 @@
                 const uniqueKey = `${destName}_${aimedTime}`;
                 if (seen.has(uniqueKey)) return false;
                 seen.add(uniqueKey);
-                const d = destName.toLowerCase();
-                return !d.includes('boissy') && !d.includes('varenne');
+                return !destName.toLowerCase().includes('boissy') && !destName.toLowerCase().includes('varenne');
             })
             .sort((a, b) => {
                 const tA = new Date(a.MonitoredCall.ExpectedDepartureTime || a.MonitoredCall.AimedDepartureTime);
@@ -191,25 +192,43 @@
             const mission = j.JourneyNote?.[0]?.value || "----";
             const time = new Date(j.MonitoredCall.ExpectedDepartureTime || j.MonitoredCall.AimedDepartureTime);
             const diff = Math.round((time - now) / 60000);
-            
+            const aimedTime = j.MonitoredCall.AimedDepartureTime;
+            const uniqueKey = `${mission}_${aimedTime}`;
+
             const platformData = j.MonitoredCall.DeparturePlatformName;
             const platform = (platformData && typeof platformData === 'object') ? platformData.value : (platformData || "2");
             const isAtStop = j.MonitoredCall.VehicleAtStop === true || j.MonitoredCall.VehicleAtStop === "true";
 
-            let timeHTML = '';
+            // Détermination de la valeur textuelle
+            let currentVal = "";
+            let timeContent = "";
+            
             if (isAtStop) {
-                timeHTML = `<span class="full-text">À quai</span>`;
+                currentVal = "QUAI";
+                timeContent = `<span class="full-text">À quai</span>`;
             } else if (diff <= 0) {
-                timeHTML = `<span class="full-text">À l'approche</span>`;
+                currentVal = "APPROCHE";
+                timeContent = `<span class="full-text">À l'approche</span>`;
             } else {
-                timeHTML = `<span class="val">${diff}</span><span class="unit">min</span>`;
+                currentVal = `${diff}`;
+                timeContent = `<span class="val">${diff}</span><span class="unit">min</span>`;
             }
+
+            // --- LOGIQUE D'ANIMATION ---
+            // On vérifie si la valeur a changé pour ce train précis
+            const hasChanged = lastTimes[uniqueKey] !== undefined && lastTimes[uniqueKey] !== currentVal;
+            const animationClass = hasChanged ? 'animate-text' : '';
+            
+            // Mise à jour de la mémoire
+            lastTimes[uniqueKey] = currentVal;
 
             html += `
                 <div class="row">
                     <div class="mission">${mission}</div>
                     <div class="dest">${dest}</div>
-                    <div class="time">${timeHTML}</div>
+                    <div class="time">
+                        <div class="${animationClass}">${timeContent}</div>
+                    </div>
                     <div class="platform">
                         <div class="platform-box">
                             <span class="platform-text">Quai</span>
@@ -218,14 +237,14 @@
                     </div>
                 </div>`;
         });
+        
         board.innerHTML = html;
     }
 
     setInterval(updateClock, 1000);
     updateClock();
     fetchSchedules();
-    // ACTUALISATION TOUTES LES 10 SECONDES
-    setInterval(fetchSchedules, 10000);
+    setInterval(fetchSchedules, 10000); // 10 secondes
 </script>
 </body>
 </html>

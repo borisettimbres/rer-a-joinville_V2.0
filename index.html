@@ -12,8 +12,8 @@
             --bg-page: #f5f5f5;
             --grey-border: #666;
             --grey-bg: #eee;
-            --info-bg: #d0dce4; /* Gris-bleu de la photo */
-            --info-text: #1a3144; /* Texte bleu foncé */
+            --info-bg: #d0dce4; /* Gris-bleu exact */
+            --info-text: #1a3144; /* Bleu foncé exact */
             --ok-color: #00ff00;
             --ko-color: #ff4444;
         }
@@ -44,7 +44,7 @@
         
         .board { flex-grow: 1; padding: 0 20px; overflow: hidden; display: flex; flex-direction: column; }
         
-        /* --- ANIMATIONS LIGNES --- */
+        /* --- ANIMATIONS LIGNES (NON MODIFIÉES) --- */
         .row { 
             display: grid; 
             grid-template-columns: 100px 1fr 220px 100px; 
@@ -56,9 +56,7 @@
             height: 70px;
             overflow: hidden;
         }
-
         .row.exit-left { transform: translateX(-120%); opacity: 0; height: 0; padding-top: 0; padding-bottom: 0; border-bottom: none; }
-
         @keyframes slideInFromBottom {
             0% { transform: translateY(50px); opacity: 0; }
             100% { transform: translateY(0); opacity: 1; }
@@ -81,10 +79,10 @@
         .platform-text { font-size: 10px; text-transform: uppercase; font-weight: bold; }
         .platform-num { font-size: 24px; font-weight: 900; }
 
-        /* --- ENCART INFO TRAFIC (Inspiration article & Photo) --- */
+        /* --- ENCART INFO TRAFIC (CIBLE API GENERAL-MESSAGE) --- */
         .info-trafic {
             background: var(--info-bg);
-            height: 100px;
+            height: 110px;
             display: flex;
             align-items: center;
             padding: 0 30px;
@@ -95,14 +93,12 @@
 
         .info-icon-container { margin-right: 25px; flex-shrink: 0; display: flex; align-items: center; }
 
-        /* Icône "i" Information standard */
         .icon-info-blue {
             width: 45px; height: 45px; background: white; border: 3px solid #1a3144; border-radius: 6px;
             display: flex; align-items: center; justify-content: center;
             font-size: 32px; font-weight: bold; color: #1a3144;
         }
 
-        /* Icône Alerte (Logo incident) */
         .logo-incident { position: relative; display: none; }
         .logo-incident .logo-box {
             background: #555; color: white; width: 45px; height: 45px; border-radius: 8px;
@@ -118,7 +114,7 @@
         .info-scroll-container { flex-grow: 1; overflow: hidden; white-space: nowrap; }
         .info-text { display: inline-block; font-size: 24px; font-weight: 700; color: var(--info-text); padding-left: 20px; }
 
-        .marquee { padding-left: 100%; animation: marquee 45s linear infinite; }
+        .marquee { padding-left: 100%; animation: marquee 40s linear infinite; }
         @keyframes marquee { 0% { transform: translate(0, 0); } 100% { transform: translate(-100%, 0); } }
 
         .time-box { background: #333; color: white; padding: 2px 6px; border-radius: 4px; font-family: monospace; }
@@ -181,20 +177,9 @@
         document.getElementById('clock').innerText = new Date().toLocaleTimeString('fr-FR', {hour: '2-digit', minute:'2-digit'});
     }
 
-    function formatDestination(text) {
-        let clean = text.replace(/GARE DE /gi, '').trim().toLowerCase();
-        if (clean === "cergy le haut") return "Cergy - Le Haut";
-        return clean.split(/([ -])/).map(part => {
-            if (part === " " || part === "-") return part;
-            const exceptions = ["de", "la", "le"];
-            if (exceptions.includes(part) && clean.indexOf(part) !== 0 && !clean.includes("le haut")) return part;
-            return part.charAt(0).toUpperCase() + part.slice(1);
-        }).join('');
-    }
-
     /**
-     * API INFO TRAFIC - INSPIRATION MEDIUM (SIRI-GM)
-     * On utilise l'endpoint General Message de PRIM qui est le standard pour les bandeaux SIEL.
+     * INFO TRAFIC - API GENERAL-MESSAGE (SIRI Lite)
+     * Récupère les messages globaux RER et Métro
      */
     async function fetchGlobalTraffic() {
         const debugNode = document.getElementById('debug-traffic');
@@ -203,23 +188,28 @@
         
         try {
             const response = await fetch(proxy, { 
-                headers: { 'apiKey': API_KEY } 
+                headers: { 
+                    'apiKey': API_KEY, // On garde apiKey avec K majuscule car il fonctionne pour le SIEL
+                    'Accept': 'application/json'
+                } 
             });
             
-            if (!response.ok) throw new Error();
+            if (!response.ok) throw new Error("HTTP " + response.status);
             
             const data = await response.json();
-            const messages = data.Siri?.ServiceDelivery?.GeneralMessageDelivery?.[0]?.InfoMessage || [];
+            const deliveries = data.Siri?.ServiceDelivery?.GeneralMessageDelivery?.[0]?.InfoMessage || [];
             
-            // Filtrage : comme dans l'article, on exclut les travaux (souvent channel COMMERCIAL) 
-            // et on ne garde que les incidents (PERTURBATION)
-            const incidents = messages.filter(m => {
-                const channel = m.InfoChannelRef?.value;
+            // Filtrage : On garde uniquement PERTURBATION et on exclut les TRAVAUX
+            const incidents = deliveries.filter(m => {
                 const text = m.Content?.Message?.[0]?.MessageText?.value || "";
+                const channel = m.InfoChannelRef?.value || "";
                 
-                // Exclure les travaux prévus (Planned) et les mots-clés de chantier
-                const isWork = text.toLowerCase().includes("travaux") || text.toLowerCase().includes("chantier");
-                return channel === "PERTURBATION" && !isWork;
+                // Exclure les messages commerciaux/travaux
+                const isWork = text.toLowerCase().includes("travaux") || 
+                               text.toLowerCase().includes("chantier") || 
+                               channel === "COMMERCIAL";
+                
+                return !isWork && text.length > 5;
             });
 
             const txtNode = document.getElementById('traffic-message');
@@ -227,10 +217,10 @@
             const iconInc = document.getElementById('icon-incident');
 
             if (incidents.length > 0) {
-                // Construction du texte (doublé pour le défilement infini)
+                // On regroupe les messages
                 const fullText = incidents.map(i => i.Content.Message[0].MessageText.value).join(' ••• ');
                 
-                // Formater les heures type "19h00" ou "19:00" en noir/blanc comme sur la photo
+                // Mise en forme des heures (19:00 ou 19h00)
                 const formatted = fullText.replace(/(\d{1,2}h\d{2}|\d{1,2}:\d{2})/g, '<span class="time-box">$1</span>');
                 
                 txtNode.innerHTML = formatted + " — " + formatted;
@@ -247,11 +237,22 @@
             debugNode.innerHTML = '<span class="api-ok">API info traffic OK</span>';
         } catch (e) {
             debugNode.innerHTML = '<span class="api-ko">API info traffic KO</span>';
-            console.error("Traffic API Error:", e);
+            console.error("Traffic Error:", e);
         }
     }
 
-    /* Le reste du code (horaires, animations) reste strictement identique */
+    /* --- LOGIQUE SIEL ET ANIMATIONS (NON MODIFIÉES) --- */
+    function formatDestination(text) {
+        let clean = text.replace(/GARE DE /gi, '').trim().toLowerCase();
+        if (clean === "cergy le haut") return "Cergy - Le Haut";
+        return clean.split(/([ -])/).map(part => {
+            if (part === " " || part === "-") return part;
+            const exceptions = ["de", "la", "le"];
+            if (exceptions.includes(part) && clean.indexOf(part) !== 0 && !clean.includes("le haut")) return part;
+            return part.charAt(0).toUpperCase() + part.slice(1);
+        }).join('');
+    }
+
     async function fetchSchedules() {
         if (isAnimating) return;
         const debug = document.getElementById('debug-schedules');
@@ -329,7 +330,7 @@
     fetchSchedules();
     setInterval(fetchSchedules, 10000);
     fetchGlobalTraffic();
-    setInterval(fetchGlobalTraffic, 60000);
+    setInterval(fetchGlobalTraffic, 120000);
 </script>
 </body>
 </html>

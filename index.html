@@ -1,222 +1,78 @@
-<!DOCTYPE html>
-<html lang="fr">
-<head>
-    <meta charset="UTF-8">
-    <title>SIEL RER A - Joinville-le-Pont</title>
-    <link href="https://fonts.googleapis.com/css2?family=Cabin:wght@700&display=swap" rel="stylesheet">
-    <style>
-        :root { 
-            --red-a: #c0333a; 
-            --dark: #000000;
-            --yellow: #fbc02d; 
-            --bg-page: #f5f5f5;
-            --grey-border: #666;
-            --grey-bg: #eee;
-            --info-bg: #d0dce4;
-            --info-text: #1a3144;
-            --ok-color: #00ff00;
-            --ko-color: #ff4444;
-        }
-        body { background: var(--bg-page); font-family: 'Cabin', sans-serif; margin: 0; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
-        
-        header { background: white; padding: 12px 25px; display: flex; justify-content: space-between; align-items: center; border-bottom: 8px solid var(--red-a); z-index: 10; }
-        
-        .header-left { display: flex; align-items: center; }
-        .logos-container { display: flex; gap: 8px; align-items: center; }
-        
-        .logo-rer {
-            background: white; border: 2.5px solid var(--dark); border-radius: 8px;
-            width: 48px; height: 48px; display: flex; align-items: center; justify-content: center;
-            font-size: 14px; font-weight: 900; color: var(--dark); box-sizing: border-box;
-        }
-        
-        .logo-a {
-            background: var(--red-a); border-radius: 8px;
-            width: 48px; height: 48px; display: flex; align-items: center; justify-content: center;
-            font-size: 36px; font-weight: 900; color: white; box-sizing: border-box;
-        }
-        
-        .station-info { margin-left: 15px; }
-        .station-name { font-size: 26px; font-weight: bold; line-height: 1; letter-spacing: -0.5px; color: var(--dark); }
-        .direction-info { font-size: 16px; color: var(--red-a); margin-top: 4px; font-weight: bold; letter-spacing: -0.2px; }
-        
-        .clock { background: var(--dark); color: var(--yellow); padding: 10px 22px; border-radius: 8px; font-size: 28px; font-weight: bold; }
-        
-        .board { flex-grow: 1; padding: 0 20px; overflow: hidden; display: flex; flex-direction: column; }
-        
-        /* --- ANIMATIONS LIGNES --- */
-        .row { 
-            display: grid; 
-            grid-template-columns: 100px 1fr 220px 100px; 
-            align-items: center; 
-            padding: 15px 0; 
-            border-bottom: 2px solid #ddd;
-            background: var(--bg-page);
-            transition: transform 0.6s ease-in, opacity 0.5s ease-in, height 0.6s ease, padding 0.6s ease;
-            height: 70px;
-            overflow: hidden;
-        }
-        .row.exit-left { transform: translateX(-120%); opacity: 0; height: 0; padding-top: 0; padding-bottom: 0; border-bottom: none; }
-        @keyframes slideInFromBottom {
-            0% { transform: translateY(50px); opacity: 0; }
-            100% { transform: translateY(0); opacity: 1; }
-        }
-        .row.new-row { animation: slideInFromBottom 0.5s ease-out forwards; }
-
-        .mission { background: #ddd; padding: 6px; border-radius: 4px; text-align: center; font-weight: bold; font-family: monospace; font-size: 16px; }
-        .dest { font-size: 28px; font-weight: 700; padding-left: 15px; color: var(--dark); }
-        
-        .time { background: var(--dark); color: var(--yellow); border-radius: 8px; text-align: center; width: 190px; height: 60px; display: flex; justify-content: center; align-items: center; justify-self: center; overflow: hidden; }
-        .time-wrapper { display: flex; flex-direction: column; align-items: center; justify-content: center; width: 100%; }
-        .blinking { animation: blinker 1.2s linear infinite; }
-        @keyframes blinker { 50% { opacity: 0; } }
-
-        .time .val, .time .full-text { font-size: 32px; font-weight: bold; line-height: 0.85; text-transform: uppercase; }
-        .time .unit { font-size: 14px; margin-top: 2px; text-transform: lowercase; font-weight: bold; }
-
-        .platform { display: flex; justify-content: center; border-left: 1px solid #ccc; padding-left: 10px; }
-        .platform-box { background: var(--grey-bg); border: 2.5px solid var(--grey-border); border-radius: 8px; width: 60px; height: 60px; display: flex; flex-direction: column; align-items: center; justify-content: center; box-sizing: border-box; color: var(--dark); }
-        .platform-text { font-size: 10px; text-transform: uppercase; font-weight: bold; }
-        .platform-num { font-size: 24px; font-weight: 900; }
-
-        /* --- ENCART INFO TRAFIC --- */
-        .info-trafic {
-            background: var(--info-bg);
-            height: 110px;
-            display: flex;
-            align-items: center;
-            padding: 0 30px;
-            position: relative;
-            z-index: 5;
-            border-top: 2px solid #b8c5ce;
-        }
-
-        .info-icon-container { margin-right: 25px; flex-shrink: 0; display: flex; align-items: center; }
-
-        .icon-info-blue {
-            width: 45px; height: 45px; background: white; border: 3px solid #1a3144; border-radius: 6px;
-            display: flex; align-items: center; justify-content: center;
-            font-size: 32px; font-weight: bold; color: #1a3144;
-        }
-
-        .logo-incident { position: relative; display: none; }
-        .logo-incident .logo-box {
-            background: #555; color: white; width: 45px; height: 45px; border-radius: 8px;
-            display: flex; align-items: center; justify-content: center; font-size: 24px; font-weight: 900;
-        }
-        .logo-status-x {
-            position: absolute; bottom: -5px; right: -8px;
-            background: #ff0000; color: white; width: 20px; height: 20px; border-radius: 4px;
-            border: 2px solid white; display: flex; align-items: center; justify-content: center;
-            font-size: 14px; font-weight: bold;
-        }
-
-        .info-scroll-container { flex-grow: 1; overflow: hidden; white-space: nowrap; }
-        .info-text { display: inline-block; font-size: 24px; font-weight: 700; color: var(--info-text); padding-left: 20px; }
-
-        .marquee { padding-left: 100%; animation: marquee 40s linear infinite; }
-        @keyframes marquee { 0% { transform: translate(0, 0); } 100% { transform: translate(-100%, 0); } }
-
-        .time-box { background: #333; color: white; padding: 2px 6px; border-radius: 4px; font-family: monospace; }
-
-        footer { 
-            background: #333; color: #aaa; padding: 10px 20px; 
-            font-family: monospace; font-size: 11px; z-index: 10;
-            display: flex; justify-content: space-between;
-        }
-        .api-ok { color: var(--ok-color); font-weight: bold; }
-        .api-ko { color: var(--ko-color); font-weight: bold; }
-    </style>
-</head>
-<body>
-
-<header>
-    <div class="header-left">
-        <div class="logos-container">
-            <div class="logo-rer">RER</div>
-            <div class="logo-a">A</div>
-        </div>
-        <div class="station-info">
-            <div class="station-name">JOINVILLE-LE-PONT</div>
-            <div class="direction-info">Paris · St-Germain-en-Laye · Poissy · Cergy</div>
-        </div>
-    </div>
-    <div class="clock" id="clock">--:--</div>
-</header>
-
-<div class="board" id="board"></div>
-
-<div class="info-trafic" id="info-trafic-bar">
-    <div class="info-icon-container">
-        <div id="icon-standard" class="icon-info-blue">i</div>
-        <div id="icon-incident" class="logo-incident">
-            <div class="logo-box">!</div>
-            <div class="logo-status-x">×</div>
-        </div>
-    </div>
-    <div class="info-scroll-container">
-        <div class="info-text" id="traffic-message">Attentifs, ensemble • Ne pas se séparer de ses effets personnels • Signaler à nos agents tout objet abandonné, comportement ou situation inhabituels</div>
-    </div>
-</div>
-
-<footer>
-    <div id="debug-schedules">> SIEL : Prêt.</div>
-    <div id="debug-traffic">API info traffic --</div>
-</footer>
-
 <script>
     const API_KEY = '2pz4kMqzVx2zneQWOTnOrqM6muPE1XVO';
     const MONITORING_REF = 'STIF:StopArea:SP:70640:'; 
     
-    let lastTimes = {};
     let currentTrainsData = [];
     let isAnimating = false;
-    const DEFAULT_MSG = "Attentifs, ensemble • Ne pas se séparer de ses effets personnels • Signaler à nos agents tout objet abandonné, comportement ou situation inhabituels";
+    const DEFAULT_MSG = "Attentifs, ensemble • Ne pas se séparer de ses effets personnels • Signaler tout objet abandonné ou situation inhabituelle";
 
     function updateClock() {
         document.getElementById('clock').innerText = new Date().toLocaleTimeString('fr-FR', {hour: '2-digit', minute:'2-digit'});
     }
 
+    /**
+     * Consomme l'API "Messages affichés sur les écrans"
+     * Filtre spécifiquement pour le Métro et le RER
+     */
     async function fetchGlobalTraffic() {
         const debugNode = document.getElementById('debug-traffic');
+        const txtNode = document.getElementById('traffic-message');
+        const iconStd = document.getElementById('icon-standard');
+        const iconInc = document.getElementById('icon-incident');
+
+        // URL de l'API SIRI-SX (General Message)
         const url = `https://prim.iledefrance-mobilites.fr/marketplace/general-message`;
         const proxy = `https://corsproxy.io/?${encodeURIComponent(url)}`;
         
         try {
-            const response = await fetch(proxy, { headers: { 'apikey': API_KEY, 'Accept': 'application/json' } });
-            if (!response.ok) throw new Error();
-            const data = await response.json();
-            const deliveries = data.Siri?.ServiceDelivery?.GeneralMessageDelivery?.[0]?.InfoMessage || [];
+            const response = await fetch(proxy, { 
+                headers: { 'apikey': API_KEY, 'Accept': 'application/json' } 
+            });
+            if (!response.ok) throw new Error("Erreur API");
             
-            const trafficIncidents = deliveries.filter(m => {
-                const text = m.Content?.Message?.[0]?.MessageText?.value || "";
+            const data = await response.json();
+            const messages = data.Siri?.ServiceDelivery?.GeneralMessageDelivery?.[0]?.InfoMessage || [];
+            
+            // FILTRAGE : Uniquement Métro (C013) et RER (C017)
+            const trafficIncidents = messages.filter(m => {
+                const lineRefs = m.AffectedComponents?.AffectedLine || [];
+                const isMetroOrRER = lineRefs.some(line => 
+                    line.LineRef?.value.includes('STIF:Line::C013') || // Métros
+                    line.LineRef?.value.includes('STIF:Line::C017')    // RER
+                );
+                
                 const channel = m.InfoChannelRef?.value || "";
-                const isWork = text.toLowerCase().includes("travaux") || text.toLowerCase().includes("chantier") || channel === "COMMERCIAL";
-                return !isWork && text.length > 5;
+                // On garde si c'est du métro/RER ET que c'est une perturbation réelle (pas juste de la pub)
+                return isMetroOrRER && channel === "BusinessDisruption";
             });
 
-            const txtNode = document.getElementById('traffic-message');
-            const iconStd = document.getElementById('icon-standard');
-            const iconInc = document.getElementById('icon-incident');
-
             if (trafficIncidents.length > 0) {
-                const fullText = trafficIncidents.map(i => i.Content.Message[0].MessageText.value).join(' ••• ');
+                // On extrait le texte et on nettoie les doublons
+                const uniqueMessages = [...new Set(trafficIncidents.map(i => i.Content.Message[0].MessageText.value))];
+                const fullText = uniqueMessages.join(' ••• ');
+                
+                // Formatage des heures en blanc sur fond noir (style SIEL)
                 const formatted = fullText.replace(/(\d{1,2}h\d{2}|\d{1,2}:\d{2})/g, '<span class="time-box">$1</span>');
+                
                 txtNode.innerHTML = formatted + " — " + formatted;
                 txtNode.classList.add('marquee');
                 iconStd.style.display = 'none';
                 iconInc.style.display = 'block';
             } else {
+                // Retour au message par défaut si trafic fluide
                 txtNode.innerHTML = DEFAULT_MSG;
                 txtNode.classList.remove('marquee');
                 iconStd.style.display = 'flex';
                 iconInc.style.display = 'none';
             }
-            debugNode.innerHTML = '<span class="api-ok">API info traffic OK</span>';
+            debugNode.innerHTML = '<span class="api-ok">API TRAFFIC : OK</span>';
         } catch (e) {
-            debugNode.innerHTML = '<span class="api-ko">API info traffic KO</span>';
+            console.error("Erreur Traffic:", e);
+            debugNode.innerHTML = '<span class="api-ko">API TRAFFIC : HS</span>';
         }
     }
+
+    // --- FONCTIONS SIEL (Horaires des trains) ---
 
     function formatDestination(text) {
         let clean = text.replace(/GARE DE /gi, '').trim().toLowerCase();
@@ -246,7 +102,6 @@
     }
 
     function processUpdate(visits) {
-        const now = new Date();
         const seen = new Set();
         let newTrains = visits.map(v => v.MonitoredVehicleJourney).filter(j => {
             const line = j.LineRef?.value || "";
@@ -280,7 +135,11 @@
         const board = document.getElementById('board');
         const now = new Date();
         let html = '';
-        if (trains.length === 0) { board.innerHTML = '<div style="text-align:center;margin-top:100px;color:#999;">Aucun train détecté.</div>'; currentTrainsData = []; return; }
+        if (trains.length === 0) { 
+            board.innerHTML = '<div style="text-align:center;margin-top:100px;color:#999;">Aucun train détecté.</div>'; 
+            currentTrainsData = []; 
+            return; 
+        }
         
         trains.forEach(j => {
             const dest = formatDestination(j.DestinationName[0].value);
@@ -288,23 +147,17 @@
             const time = new Date(j.MonitoredCall.ExpectedDepartureTime || j.MonitoredCall.AimedDepartureTime);
             const diff = Math.round((time - now) / 60000);
             const isAtStop = j.MonitoredCall.VehicleAtStop === true || j.MonitoredCall.VehicleAtStop === "true";
+            
             let timeHTML = (isAtStop) ? '<span class="full-text">À quai</span>' : (diff <= 0 ? '<span class="full-text">À l\'approche</span>' : `<span class="val">${diff}</span><span class="unit">min</span>`);
             let statusClass = (diff <= 0 && !isAtStop) ? 'blinking' : '';
+            
             const isNewRow = !currentTrainsData.some(old => old.FramedVehicleJourneyRef?.DatedVehicleJourneyRef === j.FramedVehicleJourneyRef?.DatedVehicleJourneyRef);
             
-            // --- GESTION DU QUAI : N'affiche rien si unknown ou manquant ---
             const platformData = j.MonitoredCall.DeparturePlatformName;
             const rawPlatform = (platformData && typeof platformData === 'object') ? platformData.value : platformData;
-            
-            let platformHTML = '<div class="platform"></div>'; // Par défaut : colonne vide
+            let platformHTML = '<div class="platform"></div>';
             if (rawPlatform && rawPlatform !== "unknown" && rawPlatform !== "") {
-                platformHTML = `
-                    <div class="platform">
-                        <div class="platform-box">
-                            <span class="platform-text">Quai</span>
-                            <span class="platform-num">${rawPlatform}</span>
-                        </div>
-                    </div>`;
+                platformHTML = `<div class="platform"><div class="platform-box"><span class="platform-text">Quai</span><span class="platform-num">${rawPlatform}</span></div></div>`;
             }
 
             html += `<div class="row ${isNewRow ? 'new-row' : ''}">
@@ -318,12 +171,15 @@
         currentTrainsData = trains;
     }
 
+    // Initialisation
     setInterval(updateClock, 1000);
     updateClock();
+
+    // Fréquence SIEL (Horaires quai) : toutes les 15s
     fetchSchedules();
-    setInterval(fetchSchedules, 10000);
+    setInterval(fetchSchedules, 15000);
+
+    // Fréquence Info Trafic : toutes les 60s (optimal pour PRIM)
     fetchGlobalTraffic();
-    setInterval(fetchGlobalTraffic, 120000);
+    setInterval(fetchGlobalTraffic, 60000);
 </script>
-</body>
-</html>

@@ -98,7 +98,7 @@
 
         .info-scroll-container { flex-grow: 1; overflow: hidden; white-space: nowrap; }
         .info-text { display: inline-block; font-size: 24px; font-weight: 700; color: var(--info-text); padding-left: 20px; }
-        .marquee { padding-left: 100%; animation: marquee 60s linear infinite; }
+        .marquee { padding-left: 100%; animation: marquee 50s linear infinite; }
         @keyframes marquee { 0% { transform: translate(0, 0); } 100% { transform: translate(-100%, 0); } }
 
         .time-box { background: #333; color: white; padding: 2px 6px; border-radius: 4px; font-family: monospace; }
@@ -151,8 +151,7 @@
     }
 
     /**
-     * API INFOS TRAFIC (SIRI-SX)
-     * Strategie corrigée pour éviter l'erreur 400
+     * MODIFICATION ICI : API TRAFIC UNIQUEMENT
      */
     async function fetchGlobalTraffic() {
         const debugNode = document.getElementById('debug-traffic');
@@ -160,44 +159,42 @@
         const iconStd = document.getElementById('icon-standard');
         const iconInc = document.getElementById('icon-incident');
 
-        // Ajout d'un filtre pour éviter une requête vide
-        const url = `https://prim.iledefrance-mobilites.fr/marketplace/general-message?InfoChannelRef=BusinessDisruption`;
-        
-        // Utilisation d'un proxy différent (AllOrigins) pour tester la stabilité
-        const proxy = `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`;
+        const url = `https://prim.iledefrance-mobilites.fr/marketplace/general-message`;
+        const proxy = `https://corsproxy.io/?${encodeURIComponent(url)}`;
         
         try {
             const response = await fetch(proxy, { 
-                method: 'GET',
                 headers: { 
-                    'apikey': API_KEY, // Test en minuscules
-                    'Accept': 'application/json'
+                    'apiKey': API_KEY, 
+                    'Accept': 'application/json' 
                 } 
             });
 
             if (!response.ok) {
-                debugNode.innerHTML = `<span class="api-ko">TRAFFIC : ERREUR ${response.status}</span>`;
+                debugNode.innerHTML = `<span class="api-ko">API TRAFFIC ERREUR ${response.status}</span>`;
                 return;
             }
             
             const data = await response.json();
             const messages = data.Siri?.ServiceDelivery?.GeneralMessageDelivery?.[0]?.InfoMessage || [];
             
-            // Filtrage : On garde uniquement RER (C017) et Métro (C013)
+            // Filtrage spécifique RER A (C01742)
             const trafficIncidents = messages.filter(m => {
                 const lineRefs = m.AffectedComponents?.AffectedLine || [];
-                return lineRefs.some(line => 
-                    line.LineRef?.value.includes('STIF:Line::C017') || 
-                    line.LineRef?.value.includes('STIF:Line::C013')
-                );
+                // On cherche spécifiquement la ligne A (C01742)
+                const isRERA = lineRefs.some(line => line.LineRef?.value.includes('C01742'));
+                // On ne garde que les messages de type perturbation réelle
+                return isRERA && m.InfoChannelRef?.value === "BusinessDisruption";
             });
 
             if (trafficIncidents.length > 0) {
+                // Récupération et nettoyage des messages uniques
                 const uniqueTexts = [...new Set(trafficIncidents.map(i => i.Content.Message[0].MessageText.value))];
                 const fullText = uniqueTexts.join(' ••• ');
+                // Mise en forme des heures
                 const formatted = fullText.replace(/(\d{1,2}h\d{2}|\d{1,2}:\d{2})/g, '<span class="time-box">$1</span>');
                 
-                txtNode.innerHTML = formatted + " — " + formatted;
+                txtNode.innerHTML = formatted;
                 txtNode.classList.add('marquee');
                 iconStd.style.display = 'none';
                 iconInc.style.display = 'block';
@@ -209,28 +206,23 @@
             }
             debugNode.innerHTML = '<span class="api-ok">API TRAFFIC OK</span>';
         } catch (e) {
-            debugNode.innerHTML = '<span class="api-ko">TRAFFIC : ERREUR RÉSEAU</span>';
+            debugNode.innerHTML = '<span class="api-ko">API TRAFFIC : ERREUR RÉSEAU</span>';
         }
     }
 
     /**
-     * API SIEL (PASSAGES)
+     * PARTIE NON TOUCHÉE (PROCHAINS PASSAGES)
      */
     async function fetchSchedules() {
         if (isAnimating) return;
         const debug = document.getElementById('debug-schedules');
         const url = `https://prim.iledefrance-mobilites.fr/marketplace/stop-monitoring?MonitoringRef=${MONITORING_REF}`;
-        const proxy = `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`;
+        const proxy = `https://corsproxy.io/?${encodeURIComponent(url)}`;
         
         try {
-            const response = await fetch(proxy, { 
-                headers: { 
-                    'apiKey': API_KEY, // On garde apiKey tel que ça fonctionnait pour toi
-                    'Accept': 'application/json' 
-                } 
-            });
+            const response = await fetch(proxy, { headers: { 'apiKey': API_KEY, 'Accept': 'application/json' } });
             if (!response.ok) {
-                debug.innerHTML = `<span class="api-ko">> SIEL : ERREUR ${response.status}</span>`;
+                debug.innerHTML = `<span class="api-ko">> SIEL ERREUR ${response.status}</span>`;
                 return;
             }
             const data = await response.json();
@@ -276,11 +268,7 @@
         const board = document.getElementById('board');
         const now = new Date();
         let html = '';
-        if (trains.length === 0) { 
-            board.innerHTML = '<div style="text-align:center;margin-top:100px;color:#999;">Aucun train détecté.</div>'; 
-            currentTrainsData = []; 
-            return; 
-        }
+        if (trains.length === 0) { board.innerHTML = '<div style="text-align:center;margin-top:100px;color:#999;">Aucun train détecté.</div>'; currentTrainsData = []; return; }
         
         trains.forEach(j => {
             const dest = formatDestination(j.DestinationName[0].value);
@@ -288,7 +276,6 @@
             const time = new Date(j.MonitoredCall.ExpectedDepartureTime || j.MonitoredCall.AimedDepartureTime);
             const diff = Math.round((time - now) / 60000);
             const isAtStop = j.MonitoredCall.VehicleAtStop === true || j.MonitoredCall.VehicleAtStop === "true";
-            
             let timeHTML = (isAtStop) ? '<span class="full-text">À quai</span>' : (diff <= 0 ? '<span class="full-text">À l\'approche</span>' : `<span class="val">${diff}</span><span class="unit">min</span>`);
             let statusClass = (diff <= 0 && !isAtStop) ? 'blinking' : '';
             const isNewRow = !currentTrainsData.some(old => old.FramedVehicleJourneyRef?.DatedVehicleJourneyRef === j.FramedVehicleJourneyRef?.DatedVehicleJourneyRef);

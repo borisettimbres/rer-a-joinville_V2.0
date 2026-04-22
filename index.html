@@ -78,6 +78,7 @@
         .platform-text { font-size: 10px; text-transform: uppercase; font-weight: bold; }
         .platform-num { font-size: 24px; font-weight: 900; }
 
+        /* --- MODIFICATION ENCART TRAFIC --- */
         .info-trafic {
             background: var(--info-bg);
             height: 110px;
@@ -87,6 +88,7 @@
             position: relative;
             z-index: 5;
             border-top: 2px solid #b8c5ce;
+            overflow: hidden;
         }
 
         .info-icon-container { margin-right: 25px; flex-shrink: 0; display: flex; align-items: center; }
@@ -96,10 +98,34 @@
         .logo-incident .logo-box { background: #c0333a; color: white; width: 45px; height: 45px; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 24px; font-weight: 900; }
         .logo-status-x { position: absolute; bottom: -5px; right: -8px; background: #000; color: white; width: 20px; height: 20px; border-radius: 4px; border: 2px solid white; display: flex; align-items: center; justify-content: center; font-size: 14px; font-weight: bold; }
 
-        .info-scroll-container { flex-grow: 1; overflow: hidden; white-space: nowrap; }
-        .info-text { display: inline-block; font-size: 24px; font-weight: 700; color: var(--info-text); padding-left: 20px; }
-        .marquee { padding-left: 100%; animation: marquee 40s linear infinite; }
-        @keyframes marquee { 0% { transform: translate(0, 0); } 100% { transform: translate(-100%, 0); } }
+        .info-scroll-container { 
+            flex-grow: 1; 
+            height: 100%;
+            display: flex;
+            align-items: center;
+            overflow: hidden; 
+            position: relative;
+        }
+
+        .info-text { 
+            font-size: 24px; 
+            font-weight: 700; 
+            color: var(--info-text); 
+            width: 100%;
+            transition: transform 0.5s ease-in-out, opacity 0.5s;
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        /* Classes d'animation de transition */
+        .slide-up-exit {
+            transform: translateY(-100%);
+            opacity: 0;
+        }
+        .slide-up-enter {
+            transform: translateY(100%);
+            opacity: 0;
+        }
 
         .time-box { background: #333; color: white; padding: 2px 6px; border-radius: 4px; font-family: monospace; }
 
@@ -146,7 +172,7 @@
     let currentTrainsData = [];
     let isAnimating = false;
 
-    // Tourniquet : File d'attente des messages
+    // Tourniquet : File d'attente
     let displayQueue = [DEFAULT_MSG];
     let queueIndex = 0;
 
@@ -155,7 +181,7 @@
     }
 
     /**
-     * API TRAFFIC : Analyse du format spécifique "Perturbation" pour les travaux
+     * API TRAFFIC
      */
     async function fetchGlobalTraffic() {
         const debugNode = document.getElementById('debug-traffic');
@@ -168,12 +194,9 @@
                 debugNode.innerHTML = `<span class="api-ko">API TRAFFIC ERREUR ${response.status}</span>`;
                 return;
             }
-            
             const data = await response.json();
             const messages = data.Siri?.ServiceDelivery?.GeneralMessageDelivery?.[0]?.InfoMessage || [];
             
-            // On récupère tous les messages qui concernent le RER A
-            // Les travaux sont souvent dans le canal "Perturbation" ou "PlannedWork"
             const relevantMessages = messages.filter(m => {
                 const lineRefs = m.Content?.LineRef || [];
                 const isRERA = lineRefs.some(line => line.value.includes('C01742'));
@@ -181,16 +204,13 @@
                 return isRERA && (channel === "Perturbation" || channel === "BusinessDisruption" || channel === "PlannedWork");
             });
 
-            // Extraction des textes (on privilégie le SHORT_MESSAGE s'il existe)
             const extractedTexts = relevantMessages.map(m => {
                 const msgs = m.Content?.Message || [];
                 const short = msgs.find(msg => msg.MessageType === "SHORT_MESSAGE");
                 return short ? short.MessageText.value : (msgs[0]?.MessageText?.value || "");
             }).filter(txt => txt !== "");
 
-            // Mise à jour de la queue : Message par défaut + messages API uniques
             displayQueue = [DEFAULT_MSG, ...new Set(extractedTexts)];
-            
             debugNode.innerHTML = '<span class="api-ok">API TRAFFIC OK</span>';
         } catch (e) {
             debugNode.innerHTML = '<span class="api-ko">API TRAFFIC : ERREUR RÉSEAU</span>';
@@ -198,7 +218,7 @@
     }
 
     /**
-     * Système de Tourniquet (toutes les 10 secondes)
+     * Système de Tourniquet avec animation de montée
      */
     function rotateMessage() {
         const txtNode = document.getElementById('traffic-message');
@@ -206,30 +226,39 @@
         const iconInc = document.getElementById('icon-incident');
 
         if (displayQueue.length === 0) return;
-        if (queueIndex >= displayQueue.length) queueIndex = 0;
 
-        const currentMsg = displayQueue[queueIndex];
-        
-        // Formatage des heures (ex: 22:45)
-        const formatted = currentMsg.replace(/(\d{1,2}h\d{2}|\d{1,2}:\d{2})/g, '<span class="time-box">$1</span>');
+        // 1. Déclenche la sortie vers le haut
+        txtNode.classList.add('slide-up-exit');
 
-        // Reset de l'animation de défilement
-        txtNode.style.animation = 'none';
-        txtNode.offsetHeight; // Trigger reflow
-        txtNode.innerHTML = formatted;
+        setTimeout(() => {
+            // 2. Met à jour le message pendant que c'est invisible
+            if (queueIndex >= displayQueue.length) queueIndex = 0;
+            const currentMsg = displayQueue[queueIndex];
+            
+            const formatted = currentMsg.replace(/(\d{1,2}h\d{2}|\d{1,2}:\d{2})/g, '<span class="time-box">$1</span>');
+            txtNode.innerHTML = formatted;
 
-        if (currentMsg === DEFAULT_MSG) {
-            txtNode.classList.remove('marquee');
-            iconStd.style.display = 'flex';
-            iconInc.style.display = 'none';
-        } else {
-            txtNode.classList.add('marquee');
-            txtNode.style.animation = 'marquee 40s linear infinite';
-            iconStd.style.display = 'none';
-            iconInc.style.display = 'block';
-        }
+            // Icônes
+            if (currentMsg === DEFAULT_MSG) {
+                iconStd.style.display = 'flex';
+                iconInc.style.display = 'none';
+            } else {
+                iconStd.style.display = 'none';
+                iconInc.style.display = 'block';
+            }
 
-        queueIndex = (queueIndex + 1) % displayQueue.length;
+            // 3. Prépare l'entrée (place le texte en bas)
+            txtNode.classList.remove('slide-up-exit');
+            txtNode.classList.add('slide-up-enter');
+
+            // Force le reflow pour que le navigateur comprenne la nouvelle position
+            txtNode.offsetHeight;
+
+            // 4. Fait monter le texte vers sa position centrale
+            txtNode.classList.remove('slide-up-enter');
+
+            queueIndex = (queueIndex + 1) % displayQueue.length;
+        }, 500); // Durée de la transition CSS
     }
 
     /**
@@ -331,8 +360,7 @@
     fetchGlobalTraffic();
     setInterval(fetchGlobalTraffic, 120000); 
 
-    // Premier lancement de la rotation et boucle de 10s
-    rotateMessage();
+    // Initialisation du tourniquet
     setInterval(rotateMessage, 10000);
 </script>
 </body>

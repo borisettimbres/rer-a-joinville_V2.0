@@ -151,8 +151,8 @@
     }
 
     /**
-     * CORRECTION API TRAFIC : Utilisation du paramètre LineRef pour éviter l'erreur 400
-     * et alignement strict sur la méthode fetchSchedules.
+     * API TRAFIC : Mise à jour pour inclure les travaux (PlannedWork)
+     * et maintien de l'intervalle de 2 minutes.
      */
     async function fetchGlobalTraffic() {
         const debugNode = document.getElementById('debug-traffic');
@@ -160,29 +160,23 @@
         const iconStd = document.getElementById('icon-standard');
         const iconInc = document.getElementById('icon-incident');
 
-        // Ajout du LineRef pour filtrer directement sur le RER A et éviter le rejet 400
         const url = `https://prim.iledefrance-mobilites.fr/marketplace/general-message?LineRef=STIF:Line::C01742:`;
         const proxy = `https://corsproxy.io/?${encodeURIComponent(url)}`;
         
         try {
-            // Copie exacte du bloc de connexion de fetchSchedules
-            const response = await fetch(proxy, { 
-                headers: { 
-                    'apiKey': API_KEY, 
-                    'Accept': 'application/json' 
-                } 
-            });
-
+            const response = await fetch(proxy, { headers: { 'apiKey': API_KEY, 'Accept': 'application/json' } });
             if (!response.ok) {
                 debugNode.innerHTML = `<span class="api-ko">API TRAFFIC ERREUR ${response.status}</span>`;
                 return;
             }
-            
             const data = await response.json();
             const messages = data.Siri?.ServiceDelivery?.GeneralMessageDelivery?.[0]?.InfoMessage || [];
             
-            // On ne garde que les perturbations réelles (BusinessDisruption)
-            const trafficIncidents = messages.filter(m => m.InfoChannelRef?.value === "BusinessDisruption");
+            // Filtre : Incidents (BusinessDisruption) OU Travaux (PlannedWork)
+            const trafficIncidents = messages.filter(m => 
+                m.InfoChannelRef?.value === "BusinessDisruption" || 
+                m.InfoChannelRef?.value === "PlannedWork"
+            );
 
             if (trafficIncidents.length > 0) {
                 const uniqueTexts = [...new Set(trafficIncidents.map(i => i.Content.Message[0].MessageText.value))];
@@ -206,7 +200,7 @@
     }
 
     /**
-     * PARTIE NON TOUCHÉE COMME DEMANDÉ
+     * PARTIE NON TOUCHÉE (PROCHAINS PASSAGES)
      */
     async function fetchSchedules() {
         if (isAnimating) return;
@@ -297,10 +291,14 @@
 
     setInterval(updateClock, 1000);
     updateClock();
+    
+    // Passages : toutes les 20 secondes
     fetchSchedules();
     setInterval(fetchSchedules, 20000);
+    
+    // Trafic & Travaux : toutes les 120 secondes (2 min)
     fetchGlobalTraffic();
-    setInterval(fetchGlobalTraffic, 60000);
+    setInterval(fetchGlobalTraffic, 120000); 
 </script>
 </body>
 </html>

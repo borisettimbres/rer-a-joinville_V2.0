@@ -12,8 +12,8 @@
             --bg-page: #f5f5f5;
             --grey-border: #666;
             --grey-bg: #eee;
-            --info-bg: #d0dce4;
-            --info-text: #1a3144;
+            --info-bg: #d0dce4; /* Gris-bleu de la photo */
+            --info-text: #1a3144; /* Texte bleu foncé */
             --ok-color: #00ff00;
             --ko-color: #ff4444;
         }
@@ -178,8 +178,8 @@
     }
 
     /**
-     * INFO TRAFIC - CORRECTION FINALE
-     * Utilise le header 'apikey' en minuscules comme défini dans le Swagger-2 fourni.
+     * API INFO TRAFIC - SOURCE : Messages affichés sur les écrans (SIRI-GM)
+     * Correction des headers selon Swagger-2 (apikey en minuscules)
      */
     async function fetchGlobalTraffic() {
         const debugNode = document.getElementById('debug-traffic');
@@ -189,37 +189,34 @@
         try {
             const response = await fetch(proxy, { 
                 headers: { 
-                    'apikey': API_KEY, // Correction : minuscule 'apikey' selon Swagger-2
+                    'apikey': API_KEY, // Rigoureusement comme dans swagger-2.json
                     'Accept': 'application/json'
                 } 
             });
             
-            if (!response.ok) throw new Error("Erreur HTTP: " + response.status);
+            if (!response.ok) throw new Error("Status: " + response.status);
             
             const data = await response.json();
-            const infoMessages = data.Siri?.ServiceDelivery?.GeneralMessageDelivery?.[0]?.InfoMessage || [];
+            const deliveries = data.Siri?.ServiceDelivery?.GeneralMessageDelivery?.[0]?.InfoMessage || [];
             
-            // Filtrage : Exclure les messages de type COMMERCIAL (souvent travaux prévus)
-            // On ne garde que les PERTURBATIONS ou les messages avec un contenu réel
-            const filteredMessages = infoMessages.filter(m => {
+            // On ne garde que les messages qui ne sont pas des travaux (exclure channel COMMERCIAL)
+            const trafficIncidents = deliveries.filter(m => {
                 const text = m.Content?.Message?.[0]?.MessageText?.value || "";
                 const channel = m.InfoChannelRef?.value || "";
                 
-                // Exclure les travaux et messages commerciaux
                 const isWork = text.toLowerCase().includes("travaux") || 
                                text.toLowerCase().includes("chantier") || 
                                channel === "COMMERCIAL";
                 
-                return !isWork && text.length > 10;
+                return !isWork && text.length > 5;
             });
 
             const txtNode = document.getElementById('traffic-message');
             const iconStd = document.getElementById('icon-standard');
             const iconInc = document.getElementById('icon-incident');
 
-            if (filteredMessages.length > 0) {
-                // Construction du texte défilant
-                const fullText = filteredMessages.map(i => i.Content.Message[0].MessageText.value).join(' ••• ');
+            if (trafficIncidents.length > 0) {
+                const fullText = trafficIncidents.map(i => i.Content.Message[0].MessageText.value).join(' ••• ');
                 const formatted = fullText.replace(/(\d{1,2}h\d{2}|\d{1,2}:\d{2})/g, '<span class="time-box">$1</span>');
                 
                 txtNode.innerHTML = formatted + " — " + formatted;
@@ -236,11 +233,11 @@
             debugNode.innerHTML = '<span class="api-ok">API info traffic OK</span>';
         } catch (e) {
             debugNode.innerHTML = '<span class="api-ko">API info traffic KO</span>';
-            console.error("Traffic Error:", e);
+            console.error("Traffic API Error:", e);
         }
     }
 
-    /* --- SIEL (CONSERVÉ À L'IDENTIQUE) --- */
+    /* --- LOGIQUE SIEL ET ANIMATIONS --- */
     function formatDestination(text) {
         let clean = text.replace(/GARE DE /gi, '').trim().toLowerCase();
         if (clean === "cergy le haut") return "Cergy - Le Haut";

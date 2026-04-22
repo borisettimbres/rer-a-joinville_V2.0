@@ -18,32 +18,34 @@
         header { background: white; padding: 12px 25px; display: flex; justify-content: space-between; align-items: center; border-bottom: 8px solid var(--red-a); }
         
         .header-left { display: flex; align-items: center; }
-        .logos-container { display: flex; gap: 6px; align-items: center; }
+        .logos-container { display: flex; gap: 8px; align-items: center; }
         
+        /* LOGO RER : Carré blanc, contour noir, texte noir - TAILLE HARMONISÉE 48px */
         .logo-rer {
             background: white;
             border: 2.5px solid var(--dark);
             border-radius: 8px;
-            width: 44px;
-            height: 44px;
+            width: 48px;
+            height: 48px;
             display: flex;
             align-items: center;
             justify-content: center;
             font-size: 14px;
             font-weight: 900;
             color: var(--dark);
-            box-sizing: border-box;
+            box-sizing: border-box; /* Important pour inclure la bordure dans les 48px */
         }
         
+        /* LOGO A : Carré rouge, texte blanc - TAILLE HARMONISÉE 48px */
         .logo-a {
             background: var(--red-a);
-            border-radius: 10px;
-            width: 46px;
-            height: 46px;
+            border-radius: 8px;
+            width: 48px;
+            height: 48px;
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 34px;
+            font-size: 36px;
             font-weight: 900;
             color: white;
             box-sizing: border-box;
@@ -57,7 +59,6 @@
         
         .board { flex-grow: 1; padding: 20px; overflow-y: auto; }
         
-        /* GRILLE : Mission, Destination, Temps (milieu), Voie (fin) */
         .row { 
             display: grid; 
             grid-template-columns: 100px 1fr 200px 100px; 
@@ -67,16 +68,15 @@
         }
         
         .mission { background: #ddd; padding: 6px; border-radius: 4px; text-align: center; font-weight: bold; font-family: monospace; font-size: 16px; }
-        .dest { font-size: 28px; font-weight: 700; text-transform: uppercase; padding-left: 15px; }
+        .dest { font-size: 28px; font-weight: 700; padding-left: 15px; color: var(--dark); }
         
-        /* RECTANGLE NOIR (TEMPS) */
         .time { 
             background: var(--dark); 
             color: var(--yellow); 
             border-radius: 8px; 
             text-align: center; 
             width: 160px;
-            height: 60px; /* Hauteur fixe pour référence */
+            height: 60px; 
             display: flex;
             flex-direction: column;
             justify-content: center;
@@ -87,7 +87,6 @@
         .time .unit { font-size: 13px; margin-top: 2px; }
         .time .full-text { font-size: 16px; font-weight: bold; line-height: 1.1; text-transform: uppercase; padding: 0 5px; }
 
-        /* CARRÉ GRIS (VOIE) */
         .platform { 
             display: flex;
             justify-content: center;
@@ -98,11 +97,10 @@
             background: var(--grey-bg);
             border: 2.5px solid var(--grey-border);
             border-radius: 8px;
-            /* Dimensions égales à la hauteur du rectangle noir */
             width: 60px; 
             height: 60px;
             display: flex;
-            flex-direction: column; /* Texte l'un sous l'autre */
+            flex-direction: column; 
             align-items: center;
             justify-content: center;
             box-sizing: border-box;
@@ -144,6 +142,16 @@
     function updateClock() {
         const now = new Date();
         document.getElementById('clock').innerText = now.toLocaleTimeString('fr-FR', {hour: '2-digit', minute:'2-digit'});
+    }
+
+    function formatDestination(text) {
+        let clean = text.replace(/GARE DE /gi, '').trim().toLowerCase();
+        return clean.split(/([ -])/).map(part => {
+            if (part === " " || part === "-") return part;
+            const exceptions = ["de", "la", "le"];
+            if (exceptions.includes(part) && clean.indexOf(part) !== 0) return part;
+            return part.charAt(0).toUpperCase() + part.slice(1);
+        }).join('');
     }
 
     async function fetchSchedules() {
@@ -197,14 +205,13 @@
 
         let html = '';
         trains.slice(0, 7).forEach(j => {
-            const dest = j.DestinationName[0].value.toUpperCase().replace('GARE DE ', '').trim();
+            const dest = formatDestination(j.DestinationName[0].value);
             const mission = j.JourneyNote?.[0]?.value || "----";
             const time = new Date(j.MonitoredCall.ExpectedDepartureTime || j.MonitoredCall.AimedDepartureTime);
             const diff = Math.round((time - now) / 60000);
             
             const platformData = j.MonitoredCall.DeparturePlatformName;
             const platform = (platformData && typeof platformData === 'object') ? platformData.value : (platformData || "2");
-            
             const isAtStop = j.MonitoredCall.VehicleAtStop === true || j.MonitoredCall.VehicleAtStop === "true";
 
             let timeHTML = '';

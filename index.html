@@ -146,7 +146,7 @@
     let currentTrainsData = [];
     let isAnimating = false;
 
-    // Gestion de la rotation des messages
+    // Tourniquet : File d'attente des messages
     let displayQueue = [DEFAULT_MSG];
     let queueIndex = 0;
 
@@ -155,7 +155,7 @@
     }
 
     /**
-     * API TRAFFIC & TRAVAUX avec système de tourniquet
+     * API TRAFFIC : Analyse du format spécifique "Perturbation" pour les travaux
      */
     async function fetchGlobalTraffic() {
         const debugNode = document.getElementById('debug-traffic');
@@ -172,17 +172,24 @@
             const data = await response.json();
             const messages = data.Siri?.ServiceDelivery?.GeneralMessageDelivery?.[0]?.InfoMessage || [];
             
-            // Extraction des messages par catégorie
-            const incidents = [...new Set(messages
-                .filter(m => m.InfoChannelRef?.value === "BusinessDisruption")
-                .map(m => m.Content.Message[0].MessageText.value))];
+            // On récupère tous les messages qui concernent le RER A
+            // Les travaux sont souvent dans le canal "Perturbation" ou "PlannedWork"
+            const relevantMessages = messages.filter(m => {
+                const lineRefs = m.Content?.LineRef || [];
+                const isRERA = lineRefs.some(line => line.value.includes('C01742'));
+                const channel = m.InfoChannelRef?.value;
+                return isRERA && (channel === "Perturbation" || channel === "BusinessDisruption" || channel === "PlannedWork");
+            });
 
-            const works = [...new Set(messages
-                .filter(m => m.InfoChannelRef?.value === "PlannedWork")
-                .map(m => m.Content.Message[0].MessageText.value))];
+            // Extraction des textes (on privilégie le SHORT_MESSAGE s'il existe)
+            const extractedTexts = relevantMessages.map(m => {
+                const msgs = m.Content?.Message || [];
+                const short = msgs.find(msg => msg.MessageType === "SHORT_MESSAGE");
+                return short ? short.MessageText.value : (msgs[0]?.MessageText?.value || "");
+            }).filter(txt => txt !== "");
 
-            // Reconstruction de la file d'attente : Message par défaut + Incidents + Travaux
-            displayQueue = [DEFAULT_MSG, ...incidents, ...works];
+            // Mise à jour de la queue : Message par défaut + messages API uniques
+            displayQueue = [DEFAULT_MSG, ...new Set(extractedTexts)];
             
             debugNode.innerHTML = '<span class="api-ok">API TRAFFIC OK</span>';
         } catch (e) {
@@ -191,7 +198,7 @@
     }
 
     /**
-     * Fonction de rotation (Tourniquet) - 10 secondes
+     * Système de Tourniquet (toutes les 10 secondes)
      */
     function rotateMessage() {
         const txtNode = document.getElementById('traffic-message');
@@ -199,14 +206,14 @@
         const iconInc = document.getElementById('icon-incident');
 
         if (displayQueue.length === 0) return;
-
-        // On s'assure que l'index ne dépasse pas si la liste a rétréci
         if (queueIndex >= displayQueue.length) queueIndex = 0;
 
         const currentMsg = displayQueue[queueIndex];
+        
+        // Formatage des heures (ex: 22:45)
         const formatted = currentMsg.replace(/(\d{1,2}h\d{2}|\d{1,2}:\d{2})/g, '<span class="time-box">$1</span>');
 
-        // Animation de reset pour repartir du début du marquee
+        // Reset de l'animation de défilement
         txtNode.style.animation = 'none';
         txtNode.offsetHeight; // Trigger reflow
         txtNode.innerHTML = formatted;
@@ -222,7 +229,6 @@
             iconInc.style.display = 'block';
         }
 
-        // Passage au message suivant pour le prochain cycle
         queueIndex = (queueIndex + 1) % displayQueue.length;
     }
 
@@ -319,15 +325,14 @@
     setInterval(updateClock, 1000);
     updateClock();
     
-    // Passages : toutes les 20 secondes
     fetchSchedules();
     setInterval(fetchSchedules, 20000);
     
-    // Trafic : requêtage toutes les 2 minutes
     fetchGlobalTraffic();
     setInterval(fetchGlobalTraffic, 120000); 
 
-    // Rotation visuelle : toutes les 10 secondes
+    // Premier lancement de la rotation et boucle de 10s
+    rotateMessage();
     setInterval(rotateMessage, 10000);
 </script>
 </body>

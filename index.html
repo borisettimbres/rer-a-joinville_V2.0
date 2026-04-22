@@ -13,7 +13,7 @@
             --grey-border: #666;
             --grey-bg: #eee;
             --info-bg: #d0dce4; /* Gris-bleu de la photo */
-            --info-text: #1a3144; /* Texte foncé de la photo */
+            --info-text: #1a3144; /* Texte bleu foncé */
             --ok-color: #00ff00;
             --ko-color: #ff4444;
         }
@@ -44,6 +44,7 @@
         
         .board { flex-grow: 1; padding: 0 20px; overflow: hidden; display: flex; flex-direction: column; }
         
+        /* --- ANIMATIONS LIGNES --- */
         .row { 
             display: grid; 
             grid-template-columns: 100px 1fr 220px 100px; 
@@ -80,10 +81,10 @@
         .platform-text { font-size: 10px; text-transform: uppercase; font-weight: bold; }
         .platform-num { font-size: 24px; font-weight: 900; }
 
-        /* --- ENCART INFO TRAFIC PERMANENT --- */
+        /* --- ENCART INFO TRAFIC (Inspiration article & Photo) --- */
         .info-trafic {
             background: var(--info-bg);
-            height: 110px;
+            height: 100px;
             display: flex;
             align-items: center;
             padding: 0 30px;
@@ -94,16 +95,18 @@
 
         .info-icon-container { margin-right: 25px; flex-shrink: 0; display: flex; align-items: center; }
 
+        /* Icône "i" Information standard */
         .icon-info-blue {
-            width: 45px; height: 45px; border: 3px solid #1a3144; border-radius: 6px;
+            width: 45px; height: 45px; background: white; border: 3px solid #1a3144; border-radius: 6px;
             display: flex; align-items: center; justify-content: center;
             font-size: 32px; font-weight: bold; color: #1a3144;
         }
 
+        /* Icône Alerte (Logo incident) */
         .logo-incident { position: relative; display: none; }
         .logo-incident .logo-box {
             background: #555; color: white; width: 45px; height: 45px; border-radius: 8px;
-            display: flex; align-items: center; justify-content: center; font-size: 20px; font-weight: 900;
+            display: flex; align-items: center; justify-content: center; font-size: 24px; font-weight: 900;
         }
         .logo-status-x {
             position: absolute; bottom: -5px; right: -8px;
@@ -190,59 +193,53 @@
     }
 
     /**
-     * API INFO TRAFIC - REQUÊTE GLOBALE MESSAGES INFO TRAFIC
-     * Documentation : https://prim.iledefrance-mobilites.fr/fr/apis/idfm-disruptions_bulk
+     * API INFO TRAFIC - INSPIRATION MEDIUM (SIRI-GM)
+     * On utilise l'endpoint General Message de PRIM qui est le standard pour les bandeaux SIEL.
      */
     async function fetchGlobalTraffic() {
         const debugNode = document.getElementById('debug-traffic');
-        // Endpoint bulk défini dans le Swagger
-        const url = `https://prim.iledefrance-mobilites.fr/marketplace/disruptions_bulk/disruptions/v2`;
+        const url = `https://prim.iledefrance-mobilites.fr/marketplace/general-message`;
         const proxy = `https://corsproxy.io/?${encodeURIComponent(url)}`;
         
         try {
             const response = await fetch(proxy, { 
-                headers: { 
-                    'apikey': API_KEY, // Header en minuscules selon Swagger
-                    'Accept': 'application/json'
-                } 
+                headers: { 'apiKey': API_KEY } 
             });
             
-            if (!response.ok) throw new Error("Status " + response.status);
+            if (!response.ok) throw new Error();
             
             const data = await response.json();
-            const disruptions = data.disruptions || [];
+            const messages = data.Siri?.ServiceDelivery?.GeneralMessageDelivery?.[0]?.InfoMessage || [];
             
-            // FILTRAGE : Exclure les travaux (cause: "WORKS" ou type: "planned")
-            const incidents = disruptions.filter(d => {
-                const cause = d.cause || "";
-                const type = d.disruption_type || "";
-                const title = (d.title || "").toLowerCase();
-                const text = d.messages?.[0]?.text?.toLowerCase() || "";
+            // Filtrage : comme dans l'article, on exclut les travaux (souvent channel COMMERCIAL) 
+            // et on ne garde que les incidents (PERTURBATION)
+            const incidents = messages.filter(m => {
+                const channel = m.InfoChannelRef?.value;
+                const text = m.Content?.Message?.[0]?.MessageText?.value || "";
                 
-                const isWork = cause === "WORKS" || type === "planned" || title.includes("travaux") || text.includes("travaux");
-                return !isWork;
+                // Exclure les travaux prévus (Planned) et les mots-clés de chantier
+                const isWork = text.toLowerCase().includes("travaux") || text.toLowerCase().includes("chantier");
+                return channel === "PERTURBATION" && !isWork;
             });
 
-            const txt = document.getElementById('traffic-message');
+            const txtNode = document.getElementById('traffic-message');
             const iconStd = document.getElementById('icon-standard');
             const iconInc = document.getElementById('icon-incident');
 
             if (incidents.length > 0) {
-                const messages = incidents.map(i => {
-                    // Récupération du nom de la ligne via impactedObjects
-                    const lineLabel = (i.impactedObjects && i.impactedObjects[0]) ? i.impactedObjects[0].name : "RÉSEAU";
-                    const content = (i.messages && i.messages[0]) ? i.messages[0].text : (i.title || "");
-                    return `[${lineLabel}] ${content}`;
-                }).join(' ••• ');
-
-                const formatted = messages.replace(/(\d{1,2}:\d{2})/g, '<span class="time-box">$1</span>');
-                txt.innerHTML = formatted + " — " + formatted;
-                txt.classList.add('marquee');
+                // Construction du texte (doublé pour le défilement infini)
+                const fullText = incidents.map(i => i.Content.Message[0].MessageText.value).join(' ••• ');
+                
+                // Formater les heures type "19h00" ou "19:00" en noir/blanc comme sur la photo
+                const formatted = fullText.replace(/(\d{1,2}h\d{2}|\d{1,2}:\d{2})/g, '<span class="time-box">$1</span>');
+                
+                txtNode.innerHTML = formatted + " — " + formatted;
+                txtNode.classList.add('marquee');
                 iconStd.style.display = 'none';
                 iconInc.style.display = 'block';
             } else {
-                txt.innerHTML = DEFAULT_MSG;
-                txt.classList.remove('marquee');
+                txtNode.innerHTML = DEFAULT_MSG;
+                txtNode.classList.remove('marquee');
                 iconStd.style.display = 'flex';
                 iconInc.style.display = 'none';
             }
@@ -254,12 +251,12 @@
         }
     }
 
+    /* Le reste du code (horaires, animations) reste strictement identique */
     async function fetchSchedules() {
         if (isAnimating) return;
         const debug = document.getElementById('debug-schedules');
         const url = `https://prim.iledefrance-mobilites.fr/marketplace/stop-monitoring?MonitoringRef=${MONITORING_REF}`;
         const proxy = `https://corsproxy.io/?${encodeURIComponent(url)}`;
-
         try {
             const response = await fetch(proxy, { headers: { 'apiKey': API_KEY, 'Accept': 'application/json' } });
             const data = await response.json();
@@ -274,25 +271,18 @@
     function processUpdate(visits) {
         const now = new Date();
         const seen = new Set();
-        
-        let newTrains = visits
-            .map(v => v.MonitoredVehicleJourney)
-            .filter(j => {
-                const line = j.LineRef?.value || "";
-                if (!line.includes('C01742') && line !== 'A') return false;
-                const aimedTime = j.MonitoredCall.AimedDepartureTime;
-                const uniqueKey = `${j.DestinationName[0].value}_${aimedTime}`;
-                if (seen.has(uniqueKey)) return false;
-                seen.add(uniqueKey);
-                return !j.DestinationName[0].value.toLowerCase().includes('boissy') && !j.DestinationName[0].value.toLowerCase().includes('varenne');
-            })
-            .sort((a, b) => new Date(a.MonitoredCall.ExpectedDepartureTime || a.MonitoredCall.AimedDepartureTime) - new Date(b.MonitoredCall.ExpectedDepartureTime || b.MonitoredCall.AimedDepartureTime))
-            .slice(0, 7);
+        let newTrains = visits.map(v => v.MonitoredVehicleJourney).filter(j => {
+            const line = j.LineRef?.value || "";
+            if (!line.includes('C01742') && line !== 'A') return false;
+            const aimedTime = j.MonitoredCall.AimedDepartureTime;
+            const uniqueKey = `${j.DestinationName[0].value}_${aimedTime}`;
+            if (seen.has(uniqueKey)) return false;
+            seen.add(uniqueKey);
+            return !j.DestinationName[0].value.toLowerCase().includes('boissy') && !j.DestinationName[0].value.toLowerCase().includes('varenne');
+        }).sort((a, b) => new Date(a.MonitoredCall.ExpectedDepartureTime || a.MonitoredCall.AimedDepartureTime) - new Date(b.MonitoredCall.ExpectedDepartureTime || b.MonitoredCall.AimedDepartureTime)).slice(0, 7);
 
         if (currentTrainsData.length > 0 && newTrains.length > 0) {
-            const oldId = currentTrainsData[0].FramedVehicleJourneyRef?.DatedVehicleJourneyRef;
-            const newId = newTrains[0].FramedVehicleJourneyRef?.DatedVehicleJourneyRef;
-            if (oldId !== newId) {
+            if (currentTrainsData[0].FramedVehicleJourneyRef?.DatedVehicleJourneyRef !== newTrains[0].FramedVehicleJourneyRef?.DatedVehicleJourneyRef) {
                 triggerDepartureAnimation(newTrains);
                 return;
             }
@@ -305,58 +295,41 @@
         if (firstRow) {
             isAnimating = true;
             firstRow.classList.add('exit-left');
-            setTimeout(() => {
-                render(newTrains);
-                isAnimating = false;
-            }, 600);
-        } else {
-            render(newTrains);
-        }
+            setTimeout(() => { render(newTrains); isAnimating = false; }, 600);
+        } else { render(newTrains); }
     }
 
     function render(trains) {
         const board = document.getElementById('board');
         const now = new Date();
         let html = '';
-
-        if (trains.length === 0) {
-            board.innerHTML = '<div style="text-align:center;margin-top:100px;color:#999;">Aucun train détecté.</div>';
-            currentTrainsData = [];
-            return;
-        }
-
+        if (trains.length === 0) { board.innerHTML = '<div style="text-align:center;margin-top:100px;color:#999;">Aucun train détecté.</div>'; currentTrainsData = []; return; }
         trains.forEach(j => {
             const dest = formatDestination(j.DestinationName[0].value);
             const mission = j.JourneyNote?.[0]?.value || "----";
             const time = new Date(j.MonitoredCall.ExpectedDepartureTime || j.MonitoredCall.AimedDepartureTime);
             const diff = Math.round((time - now) / 60000);
             const isAtStop = j.MonitoredCall.VehicleAtStop === true || j.MonitoredCall.VehicleAtStop === "true";
-            
             let timeHTML = (isAtStop) ? '<span class="full-text">À quai</span>' : (diff <= 0 ? '<span class="full-text">À l\'approche</span>' : `<span class="val">${diff}</span><span class="unit">min</span>`);
             let statusClass = (diff <= 0 && !isAtStop) ? 'blinking' : '';
             const isNewRow = !currentTrainsData.some(old => old.FramedVehicleJourneyRef?.DatedVehicleJourneyRef === j.FramedVehicleJourneyRef?.DatedVehicleJourneyRef);
-
-            html += `
-                <div class="row ${isNewRow ? 'new-row' : ''}">
-                    <div class="mission">${mission}</div>
-                    <div class="dest">${dest}</div>
-                    <div class="time"><div class="time-wrapper ${statusClass}">${timeHTML}</div></div>
-                    <div class="platform"><div class="platform-box"><span class="platform-text">Quai</span><span class="platform-num">${j.MonitoredCall.DeparturePlatformName?.value || "2"}</span></div></div>
-                </div>`;
+            html += `<div class="row ${isNewRow ? 'new-row' : ''}">
+                <div class="mission">${mission}</div>
+                <div class="dest">${dest}</div>
+                <div class="time"><div class="time-wrapper ${statusClass}">${timeHTML}</div></div>
+                <div class="platform"><div class="platform-box"><span class="platform-text">Quai</span><span class="platform-num">${j.MonitoredCall.DeparturePlatformName?.value || "2"}</span></div></div>
+            </div>`;
         });
-
         board.innerHTML = html;
         currentTrainsData = trains;
     }
 
     setInterval(updateClock, 1000);
     updateClock();
-    
     fetchSchedules();
     setInterval(fetchSchedules, 10000);
-    
     fetchGlobalTraffic();
-    setInterval(fetchGlobalTraffic, 120000);
+    setInterval(fetchGlobalTraffic, 60000);
 </script>
 </body>
 </html>

@@ -12,8 +12,8 @@
             --bg-page: #f5f5f5;
             --grey-border: #666;
             --grey-bg: #eee;
-            --info-bg: #d0dce4; /* Gris-bleu exact */
-            --info-text: #1a3144; /* Bleu foncé exact */
+            --info-bg: #d0dce4;
+            --info-text: #1a3144;
             --ok-color: #00ff00;
             --ko-color: #ff4444;
         }
@@ -44,7 +44,7 @@
         
         .board { flex-grow: 1; padding: 0 20px; overflow: hidden; display: flex; flex-direction: column; }
         
-        /* --- ANIMATIONS LIGNES (NON MODIFIÉES) --- */
+        /* --- ANIMATIONS LIGNES --- */
         .row { 
             display: grid; 
             grid-template-columns: 100px 1fr 220px 100px; 
@@ -79,7 +79,7 @@
         .platform-text { font-size: 10px; text-transform: uppercase; font-weight: bold; }
         .platform-num { font-size: 24px; font-weight: 900; }
 
-        /* --- ENCART INFO TRAFIC (CIBLE API GENERAL-MESSAGE) --- */
+        /* --- ENCART INFO TRAFIC --- */
         .info-trafic {
             background: var(--info-bg);
             height: 110px;
@@ -178,8 +178,8 @@
     }
 
     /**
-     * INFO TRAFIC - API GENERAL-MESSAGE (SIRI Lite)
-     * Récupère les messages globaux RER et Métro
+     * INFO TRAFIC - CORRECTION FINALE
+     * Utilise le header 'apikey' en minuscules comme défini dans le Swagger-2 fourni.
      */
     async function fetchGlobalTraffic() {
         const debugNode = document.getElementById('debug-traffic');
@@ -189,38 +189,37 @@
         try {
             const response = await fetch(proxy, { 
                 headers: { 
-                    'apiKey': API_KEY, // On garde apiKey avec K majuscule car il fonctionne pour le SIEL
+                    'apikey': API_KEY, // Correction : minuscule 'apikey' selon Swagger-2
                     'Accept': 'application/json'
                 } 
             });
             
-            if (!response.ok) throw new Error("HTTP " + response.status);
+            if (!response.ok) throw new Error("Erreur HTTP: " + response.status);
             
             const data = await response.json();
-            const deliveries = data.Siri?.ServiceDelivery?.GeneralMessageDelivery?.[0]?.InfoMessage || [];
+            const infoMessages = data.Siri?.ServiceDelivery?.GeneralMessageDelivery?.[0]?.InfoMessage || [];
             
-            // Filtrage : On garde uniquement PERTURBATION et on exclut les TRAVAUX
-            const incidents = deliveries.filter(m => {
+            // Filtrage : Exclure les messages de type COMMERCIAL (souvent travaux prévus)
+            // On ne garde que les PERTURBATIONS ou les messages avec un contenu réel
+            const filteredMessages = infoMessages.filter(m => {
                 const text = m.Content?.Message?.[0]?.MessageText?.value || "";
                 const channel = m.InfoChannelRef?.value || "";
                 
-                // Exclure les messages commerciaux/travaux
+                // Exclure les travaux et messages commerciaux
                 const isWork = text.toLowerCase().includes("travaux") || 
                                text.toLowerCase().includes("chantier") || 
                                channel === "COMMERCIAL";
                 
-                return !isWork && text.length > 5;
+                return !isWork && text.length > 10;
             });
 
             const txtNode = document.getElementById('traffic-message');
             const iconStd = document.getElementById('icon-standard');
             const iconInc = document.getElementById('icon-incident');
 
-            if (incidents.length > 0) {
-                // On regroupe les messages
-                const fullText = incidents.map(i => i.Content.Message[0].MessageText.value).join(' ••• ');
-                
-                // Mise en forme des heures (19:00 ou 19h00)
+            if (filteredMessages.length > 0) {
+                // Construction du texte défilant
+                const fullText = filteredMessages.map(i => i.Content.Message[0].MessageText.value).join(' ••• ');
                 const formatted = fullText.replace(/(\d{1,2}h\d{2}|\d{1,2}:\d{2})/g, '<span class="time-box">$1</span>');
                 
                 txtNode.innerHTML = formatted + " — " + formatted;
@@ -241,7 +240,7 @@
         }
     }
 
-    /* --- LOGIQUE SIEL ET ANIMATIONS (NON MODIFIÉES) --- */
+    /* --- SIEL (CONSERVÉ À L'IDENTIQUE) --- */
     function formatDestination(text) {
         let clean = text.replace(/GARE DE /gi, '').trim().toLowerCase();
         if (clean === "cergy le haut") return "Cergy - Le Haut";

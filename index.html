@@ -78,7 +78,7 @@
         .platform-text { font-size: 10px; text-transform: uppercase; font-weight: bold; }
         .platform-num { font-size: 24px; font-weight: 900; }
 
-        /* --- MODIFICATION ENCART TRAFIC --- */
+        /* --- ENCART TRAFIC --- */
         .info-trafic {
             background: var(--info-bg);
             height: 110px;
@@ -94,38 +94,35 @@
         .info-icon-container { margin-right: 25px; flex-shrink: 0; display: flex; align-items: center; }
         .icon-info-blue { width: 45px; height: 45px; background: white; border: 3px solid #1a3144; border-radius: 6px; display: flex; align-items: center; justify-content: center; font-size: 32px; font-weight: bold; color: #1a3144; }
 
+        /* Icone Incident (!) */
         .logo-incident { position: relative; display: none; }
         .logo-incident .logo-box { background: #c0333a; color: white; width: 45px; height: 45px; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 24px; font-weight: 900; }
         .logo-status-x { position: absolute; bottom: -5px; right: -8px; background: #000; color: white; width: 20px; height: 20px; border-radius: 4px; border: 2px solid white; display: flex; align-items: center; justify-content: center; font-size: 14px; font-weight: bold; }
 
+        /* NOUVEAU : Icone Travaux (A + Plot) */
+        .logo-works { position: relative; display: none; }
+        .logo-works .logo-a-box { 
+            background: var(--red-a); color: white; width: 45px; height: 45px; border-radius: 8px; 
+            display: flex; align-items: center; justify-content: center; font-size: 32px; font-weight: 900; 
+        }
+        .logo-status-cone { 
+            position: absolute; bottom: -6px; right: -10px; 
+            width: 28px; height: 28px; border-radius: 6px; border: 2px solid white; 
+            background: #b34b32 url('cone.png') no-repeat center; 
+            background-size: 80%; 
+        }
+
         .info-scroll-container { 
-            flex-grow: 1; 
-            height: 100%;
-            display: flex;
-            align-items: center;
-            overflow: hidden; 
-            position: relative;
+            flex-grow: 1; height: 100%; display: flex; align-items: center; overflow: hidden; position: relative;
         }
 
         .info-text { 
-            font-size: 24px; 
-            font-weight: 700; 
-            color: var(--info-text); 
-            width: 100%;
-            transition: transform 0.5s ease-in-out, opacity 0.5s;
-            opacity: 1;
-            transform: translateY(0);
+            font-size: 24px; font-weight: 700; color: var(--info-text); width: 100%;
+            transition: transform 0.5s ease-in-out, opacity 0.5s; opacity: 1; transform: translateY(0);
         }
 
-        /* Classes d'animation de transition */
-        .slide-up-exit {
-            transform: translateY(-100%);
-            opacity: 0;
-        }
-        .slide-up-enter {
-            transform: translateY(100%);
-            opacity: 0;
-        }
+        .slide-up-exit { transform: translateY(-100%); opacity: 0; }
+        .slide-up-enter { transform: translateY(100%); opacity: 0; }
 
         .time-box { background: #333; color: white; padding: 2px 6px; border-radius: 4px; font-family: monospace; }
 
@@ -153,6 +150,7 @@
     <div class="info-icon-container">
         <div id="icon-standard" class="icon-info-blue">i</div>
         <div id="icon-incident" class="logo-incident"><div class="logo-box">!</div><div class="logo-status-x">×</div></div>
+        <div id="icon-works" class="logo-works"><div class="logo-a-box">A</div><div class="logo-status-cone"></div></div>
     </div>
     <div class="info-scroll-container">
         <div class="info-text" id="traffic-message">Connexion au réseau PRIM...</div>
@@ -172,17 +170,14 @@
     let currentTrainsData = [];
     let isAnimating = false;
 
-    // Tourniquet : File d'attente
-    let displayQueue = [DEFAULT_MSG];
+    // Tourniquet typé
+    let displayQueue = [{text: DEFAULT_MSG, type: 'default'}];
     let queueIndex = 0;
 
     function updateClock() {
         document.getElementById('clock').innerText = new Date().toLocaleTimeString('fr-FR', {hour: '2-digit', minute:'2-digit'});
     }
 
-    /**
-     * API TRAFFIC
-     */
     async function fetchGlobalTraffic() {
         const debugNode = document.getElementById('debug-traffic');
         const url = `https://prim.iledefrance-mobilites.fr/marketplace/general-message?LineRef=STIF:Line::C01742:`;
@@ -190,99 +185,86 @@
         
         try {
             const response = await fetch(proxy, { headers: { 'apiKey': API_KEY, 'Accept': 'application/json' } });
-            if (!response.ok) {
-                debugNode.innerHTML = `<span class="api-ko">API TRAFFIC ERREUR ${response.status}</span>`;
-                return;
-            }
+            if (!response.ok) return;
+            
             const data = await response.json();
             const messages = data.Siri?.ServiceDelivery?.GeneralMessageDelivery?.[0]?.InfoMessage || [];
             
-            const relevantMessages = messages.filter(m => {
+            let newQueue = [{text: DEFAULT_MSG, type: 'default'}];
+
+            messages.forEach(m => {
                 const lineRefs = m.Content?.LineRef || [];
                 const isRERA = lineRefs.some(line => line.value.includes('C01742'));
-                const channel = m.InfoChannelRef?.value;
-                return isRERA && (channel === "Perturbation" || channel === "BusinessDisruption" || channel === "PlannedWork");
-            });
+                if (!isRERA) return;
 
-            const extractedTexts = relevantMessages.map(m => {
+                const channel = m.InfoChannelRef?.value;
                 const msgs = m.Content?.Message || [];
                 const short = msgs.find(msg => msg.MessageType === "SHORT_MESSAGE");
-                return short ? short.MessageText.value : (msgs[0]?.MessageText?.value || "");
-            }).filter(txt => txt !== "");
+                const text = short ? short.MessageText.value : (msgs[0]?.MessageText?.value || "");
 
-            displayQueue = [DEFAULT_MSG, ...new Set(extractedTexts)];
+                if (text) {
+                    // Si le canal est "Perturbation", on considère que ce sont des travaux (selon votre JSON)
+                    // Sinon "BusinessDisruption" = Incident
+                    let type = (channel === "Perturbation" || channel === "PlannedWork") ? 'works' : 'incident';
+                    newQueue.push({text: text, type: type});
+                }
+            });
+
+            // Suppression des doublons de texte
+            displayQueue = Array.from(new Set(newQueue.map(a => JSON.stringify(a)))).map(a => JSON.parse(a));
             debugNode.innerHTML = '<span class="api-ok">API TRAFFIC OK</span>';
         } catch (e) {
-            debugNode.innerHTML = '<span class="api-ko">API TRAFFIC : ERREUR RÉSEAU</span>';
+            debugNode.innerHTML = '<span class="api-ko">API TRAFFIC : ERREUR</span>';
         }
     }
 
-    /**
-     * Système de Tourniquet avec animation de montée
-     */
     function rotateMessage() {
         const txtNode = document.getElementById('traffic-message');
         const iconStd = document.getElementById('icon-standard');
         const iconInc = document.getElementById('icon-incident');
+        const iconWorks = document.getElementById('icon-works');
 
         if (displayQueue.length === 0) return;
-
-        // 1. Déclenche la sortie vers le haut
         txtNode.classList.add('slide-up-exit');
 
         setTimeout(() => {
-            // 2. Met à jour le message pendant que c'est invisible
             if (queueIndex >= displayQueue.length) queueIndex = 0;
-            const currentMsg = displayQueue[queueIndex];
+            const current = displayQueue[queueIndex];
             
-            const formatted = currentMsg.replace(/(\d{1,2}h\d{2}|\d{1,2}:\d{2})/g, '<span class="time-box">$1</span>');
-            txtNode.innerHTML = formatted;
+            txtNode.innerHTML = current.text.replace(/(\d{1,2}h\d{2}|\d{1,2}:\d{2})/g, '<span class="time-box">$1</span>');
 
-            // Icônes
-            if (currentMsg === DEFAULT_MSG) {
-                iconStd.style.display = 'flex';
-                iconInc.style.display = 'none';
-            } else {
-                iconStd.style.display = 'none';
-                iconInc.style.display = 'block';
-            }
+            // Toggle des icônes
+            iconStd.style.display = 'none';
+            iconInc.style.display = 'none';
+            iconWorks.style.display = 'none';
 
-            // 3. Prépare l'entrée (place le texte en bas)
+            if (current.type === 'default') iconStd.style.display = 'flex';
+            else if (current.type === 'incident') iconInc.style.display = 'block';
+            else if (current.type === 'works') iconWorks.style.display = 'block';
+
             txtNode.classList.remove('slide-up-exit');
             txtNode.classList.add('slide-up-enter');
-
-            // Force le reflow pour que le navigateur comprenne la nouvelle position
             txtNode.offsetHeight;
-
-            // 4. Fait monter le texte vers sa position centrale
             txtNode.classList.remove('slide-up-enter');
 
             queueIndex = (queueIndex + 1) % displayQueue.length;
-        }, 500); // Durée de la transition CSS
+        }, 500);
     }
 
-    /**
-     * PARTIE NON TOUCHÉE (PROCHAINS PASSAGES)
-     */
+    /** PROCHAINS PASSAGES (NON TOUCHÉ) **/
     async function fetchSchedules() {
         if (isAnimating) return;
         const debug = document.getElementById('debug-schedules');
         const url = `https://prim.iledefrance-mobilites.fr/marketplace/stop-monitoring?MonitoringRef=${MONITORING_REF}`;
         const proxy = `https://corsproxy.io/?${encodeURIComponent(url)}`;
-        
         try {
             const response = await fetch(proxy, { headers: { 'apiKey': API_KEY, 'Accept': 'application/json' } });
-            if (!response.ok) {
-                debug.innerHTML = `<span class="api-ko">> SIEL ERREUR ${response.status}</span>`;
-                return;
-            }
+            if (!response.ok) return;
             const data = await response.json();
             const visits = data.Siri?.ServiceDelivery?.StopMonitoringDelivery?.[0]?.MonitoredStopVisit || [];
             processUpdate(visits);
             debug.innerHTML = `> SIEL OK - ${new Date().toLocaleTimeString()}`;
-        } catch (e) {
-            debug.innerHTML = '<span class="api-ko">> SIEL HS</span>';
-        }
+        } catch (e) { debug.innerHTML = '<span class="api-ko">> SIEL HS</span>'; }
     }
 
     function processUpdate(visits) {
@@ -296,11 +278,9 @@
             const destName = j.DestinationName[0].value.toLowerCase();
             return !destName.includes('boissy') && !destName.includes('varenne');
         }).sort((a, b) => new Date(a.MonitoredCall.ExpectedDepartureTime || a.MonitoredCall.AimedDepartureTime) - new Date(b.MonitoredCall.ExpectedDepartureTime || b.MonitoredCall.AimedDepartureTime)).slice(0, 7);
-
         if (currentTrainsData.length > 0 && newTrains.length > 0) {
             if (currentTrainsData[0].FramedVehicleJourneyRef?.DatedVehicleJourneyRef !== newTrains[0].FramedVehicleJourneyRef?.DatedVehicleJourneyRef) {
-                triggerDepartureAnimation(newTrains);
-                return;
+                triggerDepartureAnimation(newTrains); return;
             }
         }
         render(newTrains);
@@ -319,8 +299,7 @@
         const board = document.getElementById('board');
         const now = new Date();
         let html = '';
-        if (trains.length === 0) { board.innerHTML = '<div style="text-align:center;margin-top:100px;color:#999;">Aucun train détecté.</div>'; currentTrainsData = []; return; }
-        
+        if (trains.length === 0) { board.innerHTML = '<div style="text-align:center;margin-top:100px;color:#999;">Aucun train.</div>'; return; }
         trains.forEach(j => {
             const dest = formatDestination(j.DestinationName[0].value);
             const mission = j.JourneyNote?.[0]?.value || "----";
@@ -329,13 +308,10 @@
             const isAtStop = j.MonitoredCall.VehicleAtStop === true || j.MonitoredCall.VehicleAtStop === "true";
             let timeHTML = (isAtStop) ? '<span class="full-text">À quai</span>' : (diff <= 0 ? '<span class="full-text">À l\'approche</span>' : `<span class="val">${diff}</span><span class="unit">min</span>`);
             let statusClass = (diff <= 0 && !isAtStop) ? 'blinking' : '';
-            const isNewRow = !currentTrainsData.some(old => old.FramedVehicleJourneyRef?.DatedVehicleJourneyRef === j.FramedVehicleJourneyRef?.DatedVehicleJourneyRef);
-            
             const platformData = j.MonitoredCall.DeparturePlatformName;
             const rawPlatform = (platformData && typeof platformData === 'object') ? platformData.value : platformData;
             let platformHTML = (rawPlatform && rawPlatform !== "unknown") ? `<div class="platform"><div class="platform-box"><span class="platform-text">Quai</span><span class="platform-num">${rawPlatform}</span></div></div>` : '<div class="platform"></div>';
-
-            html += `<div class="row ${isNewRow ? 'new-row' : ''}"><div class="mission">${mission}</div><div class="dest">${dest}</div><div class="time"><div class="time-wrapper ${statusClass}">${timeHTML}</div></div>${platformHTML}</div>`;
+            html += `<div class="row"><div class="mission">${mission}</div><div class="dest">${dest}</div><div class="time"><div class="time-wrapper ${statusClass}">${timeHTML}</div></div>${platformHTML}</div>`;
         });
         board.innerHTML = html;
         currentTrainsData = trains;
@@ -353,14 +329,10 @@
 
     setInterval(updateClock, 1000);
     updateClock();
-    
     fetchSchedules();
     setInterval(fetchSchedules, 20000);
-    
     fetchGlobalTraffic();
     setInterval(fetchGlobalTraffic, 120000); 
-
-    // Initialisation du tourniquet
     setInterval(rotateMessage, 10000);
 </script>
 </body>

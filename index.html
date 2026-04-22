@@ -98,7 +98,7 @@
 
         .info-scroll-container { flex-grow: 1; overflow: hidden; white-space: nowrap; }
         .info-text { display: inline-block; font-size: 24px; font-weight: 700; color: var(--info-text); padding-left: 20px; }
-        .marquee { padding-left: 100%; animation: marquee 50s linear infinite; }
+        .marquee { padding-left: 100%; animation: marquee 60s linear infinite; }
         @keyframes marquee { 0% { transform: translate(0, 0); } 100% { transform: translate(-100%, 0); } }
 
         .time-box { background: #333; color: white; padding: 2px 6px; border-radius: 4px; font-family: monospace; }
@@ -151,7 +151,8 @@
     }
 
     /**
-     * STRATÉGIE DE CONNEXION IDENTIQUE À L'API PASSAGES
+     * API INFOS TRAFIC (SIRI-SX)
+     * Strategie corrigée pour éviter l'erreur 400
      */
     async function fetchGlobalTraffic() {
         const debugNode = document.getElementById('debug-traffic');
@@ -159,35 +160,36 @@
         const iconStd = document.getElementById('icon-standard');
         const iconInc = document.getElementById('icon-incident');
 
-        const url = `https://prim.iledefrance-mobilites.fr/marketplace/general-message`;
-        const proxy = `https://corsproxy.io/?${encodeURIComponent(url)}`;
+        // Ajout d'un filtre pour éviter une requête vide
+        const url = `https://prim.iledefrance-mobilites.fr/marketplace/general-message?InfoChannelRef=BusinessDisruption`;
+        
+        // Utilisation d'un proxy différent (AllOrigins) pour tester la stabilité
+        const proxy = `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`;
         
         try {
-            // Utilisation exacte de 'apiKey' (K majuscule) comme dans l'autre fonction
             const response = await fetch(proxy, { 
+                method: 'GET',
                 headers: { 
-                    'apiKey': API_KEY, 
-                    'Accept': 'application/json' 
+                    'apikey': API_KEY, // Test en minuscules
+                    'Accept': 'application/json'
                 } 
             });
 
-            // GESTION DES ERREURS HTTP
             if (!response.ok) {
-                debugNode.innerHTML = `<span class="api-ko">API TRAFFIC ERREUR ${response.status}</span>`;
+                debugNode.innerHTML = `<span class="api-ko">TRAFFIC : ERREUR ${response.status}</span>`;
                 return;
             }
             
             const data = await response.json();
             const messages = data.Siri?.ServiceDelivery?.GeneralMessageDelivery?.[0]?.InfoMessage || [];
             
-            // Filtrage Métro et RER
+            // Filtrage : On garde uniquement RER (C017) et Métro (C013)
             const trafficIncidents = messages.filter(m => {
                 const lineRefs = m.AffectedComponents?.AffectedLine || [];
-                const isMetroOrRER = lineRefs.some(line => 
-                    line.LineRef?.value.includes('STIF:Line::C013') || 
-                    line.LineRef?.value.includes('STIF:Line::C017')
+                return lineRefs.some(line => 
+                    line.LineRef?.value.includes('STIF:Line::C017') || 
+                    line.LineRef?.value.includes('STIF:Line::C013')
                 );
-                return isMetroOrRER && m.InfoChannelRef?.value === "BusinessDisruption";
             });
 
             if (trafficIncidents.length > 0) {
@@ -207,20 +209,28 @@
             }
             debugNode.innerHTML = '<span class="api-ok">API TRAFFIC OK</span>';
         } catch (e) {
-            debugNode.innerHTML = '<span class="api-ko">API TRAFFIC : ERREUR RÉSEAU</span>';
+            debugNode.innerHTML = '<span class="api-ko">TRAFFIC : ERREUR RÉSEAU</span>';
         }
     }
 
+    /**
+     * API SIEL (PASSAGES)
+     */
     async function fetchSchedules() {
         if (isAnimating) return;
         const debug = document.getElementById('debug-schedules');
         const url = `https://prim.iledefrance-mobilites.fr/marketplace/stop-monitoring?MonitoringRef=${MONITORING_REF}`;
-        const proxy = `https://corsproxy.io/?${encodeURIComponent(url)}`;
+        const proxy = `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`;
         
         try {
-            const response = await fetch(proxy, { headers: { 'apiKey': API_KEY, 'Accept': 'application/json' } });
+            const response = await fetch(proxy, { 
+                headers: { 
+                    'apiKey': API_KEY, // On garde apiKey tel que ça fonctionnait pour toi
+                    'Accept': 'application/json' 
+                } 
+            });
             if (!response.ok) {
-                debug.innerHTML = `<span class="api-ko">> SIEL ERREUR ${response.status}</span>`;
+                debug.innerHTML = `<span class="api-ko">> SIEL : ERREUR ${response.status}</span>`;
                 return;
             }
             const data = await response.json();
@@ -266,7 +276,11 @@
         const board = document.getElementById('board');
         const now = new Date();
         let html = '';
-        if (trains.length === 0) { board.innerHTML = '<div style="text-align:center;margin-top:100px;color:#999;">Aucun train détecté.</div>'; currentTrainsData = []; return; }
+        if (trains.length === 0) { 
+            board.innerHTML = '<div style="text-align:center;margin-top:100px;color:#999;">Aucun train détecté.</div>'; 
+            currentTrainsData = []; 
+            return; 
+        }
         
         trains.forEach(j => {
             const dest = formatDestination(j.DestinationName[0].value);
@@ -274,6 +288,7 @@
             const time = new Date(j.MonitoredCall.ExpectedDepartureTime || j.MonitoredCall.AimedDepartureTime);
             const diff = Math.round((time - now) / 60000);
             const isAtStop = j.MonitoredCall.VehicleAtStop === true || j.MonitoredCall.VehicleAtStop === "true";
+            
             let timeHTML = (isAtStop) ? '<span class="full-text">À quai</span>' : (diff <= 0 ? '<span class="full-text">À l\'approche</span>' : `<span class="val">${diff}</span><span class="unit">min</span>`);
             let statusClass = (diff <= 0 && !isAtStop) ? 'blinking' : '';
             const isNewRow = !currentTrainsData.some(old => old.FramedVehicleJourneyRef?.DatedVehicleJourneyRef === j.FramedVehicleJourneyRef?.DatedVehicleJourneyRef);

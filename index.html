@@ -12,8 +12,8 @@
             --bg-page: #f5f5f5;
             --grey-border: #666;
             --grey-bg: #eee;
-            --info-bg: #d0dce4;
-            --info-text: #1a3144;
+            --info-bg: #d0dce4; /* Gris-bleu de la photo */
+            --info-text: #1a3144; /* Texte foncé de la photo */
             --ok-color: #00ff00;
             --ko-color: #ff4444;
         }
@@ -190,32 +190,37 @@
     }
 
     /**
-     * API INFO TRAFIC - REQUÊTE GLOBALE (Corrigée selon Swagger et Navitia Bulk)
+     * API INFO TRAFIC - REQUÊTE GLOBALE MESSAGES INFO TRAFIC
+     * Documentation : https://prim.iledefrance-mobilites.fr/fr/apis/idfm-disruptions_bulk
      */
     async function fetchGlobalTraffic() {
         const debugNode = document.getElementById('debug-traffic');
+        // Endpoint bulk défini dans le Swagger
         const url = `https://prim.iledefrance-mobilites.fr/marketplace/disruptions_bulk/disruptions/v2`;
         const proxy = `https://corsproxy.io/?${encodeURIComponent(url)}`;
         
         try {
             const response = await fetch(proxy, { 
                 headers: { 
-                    'apiKey': API_KEY, // Utilisation de apiKey (casse confirmée par ton SIEL)
+                    'apikey': API_KEY, // Header en minuscules selon Swagger
                     'Accept': 'application/json'
                 } 
             });
             
-            if (!response.ok) throw new Error("HTTP Status " + response.status);
+            if (!response.ok) throw new Error("Status " + response.status);
             
             const data = await response.json();
             const disruptions = data.disruptions || [];
             
-            // FILTRAGE : Exclure les travaux (cause: "WORKS")
+            // FILTRAGE : Exclure les travaux (cause: "WORKS" ou type: "planned")
             const incidents = disruptions.filter(d => {
                 const cause = d.cause || "";
+                const type = d.disruption_type || "";
                 const title = (d.title || "").toLowerCase();
-                // On exclut si la cause est 'WORKS' ou si le titre mentionne des travaux
-                return cause !== "WORKS" && !title.includes("travaux");
+                const text = d.messages?.[0]?.text?.toLowerCase() || "";
+                
+                const isWork = cause === "WORKS" || type === "planned" || title.includes("travaux") || text.includes("travaux");
+                return !isWork;
             });
 
             const txt = document.getElementById('traffic-message');
@@ -224,7 +229,7 @@
 
             if (incidents.length > 0) {
                 const messages = incidents.map(i => {
-                    // Extraction du nom de la ligne impactée (ex: "RER A")
+                    // Récupération du nom de la ligne via impactedObjects
                     const lineLabel = (i.impactedObjects && i.impactedObjects[0]) ? i.impactedObjects[0].name : "RÉSEAU";
                     const content = (i.messages && i.messages[0]) ? i.messages[0].text : (i.title || "");
                     return `[${lineLabel}] ${content}`;
@@ -350,7 +355,6 @@
     fetchSchedules();
     setInterval(fetchSchedules, 10000);
     
-    // Fréquence : 2 minutes pour l'info trafic globale (quota)
     fetchGlobalTraffic();
     setInterval(fetchGlobalTraffic, 120000);
 </script>

@@ -21,32 +21,15 @@
         .logos-container { display: flex; gap: 8px; align-items: center; }
         
         .logo-rer {
-            background: white;
-            border: 2.5px solid var(--dark);
-            border-radius: 8px;
-            width: 48px;
-            height: 48px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 14px;
-            font-weight: 900;
-            color: var(--dark);
-            box-sizing: border-box;
+            background: white; border: 2.5px solid var(--dark); border-radius: 8px;
+            width: 48px; height: 48px; display: flex; align-items: center; justify-content: center;
+            font-size: 14px; font-weight: 900; color: var(--dark); box-sizing: border-box;
         }
         
         .logo-a {
-            background: var(--red-a);
-            border-radius: 8px;
-            width: 48px;
-            height: 48px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 36px;
-            font-weight: 900;
-            color: white;
-            box-sizing: border-box;
+            background: var(--red-a); border-radius: 8px;
+            width: 48px; height: 48px; display: flex; align-items: center; justify-content: center;
+            font-size: 36px; font-weight: 900; color: white; box-sizing: border-box;
         }
         
         .station-info { margin-left: 15px; }
@@ -68,6 +51,11 @@
         .mission { background: #ddd; padding: 6px; border-radius: 4px; text-align: center; font-weight: bold; font-family: monospace; font-size: 16px; }
         .dest { font-size: 28px; font-weight: 700; padding-left: 15px; color: var(--dark); }
         
+        @keyframes updatePop {
+            0% { opacity: 0; transform: scale(0.95); }
+            100% { opacity: 1; transform: scale(1); }
+        }
+
         .time { 
             background: var(--dark); 
             color: var(--yellow); 
@@ -80,6 +68,7 @@
             justify-content: center;
             align-items: center;
             justify-self: center;
+            animation: updatePop 0.6s ease-out;
         }
         .time .val { font-size: 34px; font-weight: bold; display: block; line-height: 0.8; }
         .time .unit { font-size: 13px; margin-top: 2px; }
@@ -95,15 +84,9 @@
             background: var(--grey-bg);
             border: 2.5px solid var(--grey-border);
             border-radius: 8px;
-            width: 60px; 
-            height: 60px;
-            display: flex;
-            flex-direction: column; 
-            align-items: center;
-            justify-content: center;
-            box-sizing: border-box;
-            color: var(--dark);
-            line-height: 1;
+            width: 60px; height: 60px;
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            box-sizing: border-box; color: var(--dark); line-height: 1;
         }
         .platform-text { font-size: 11px; text-transform: uppercase; font-weight: bold; margin-bottom: 2px; }
         .platform-num { font-size: 24px; font-weight: 900; }
@@ -142,18 +125,12 @@
         document.getElementById('clock').innerText = now.toLocaleTimeString('fr-FR', {hour: '2-digit', minute:'2-digit'});
     }
 
-    // Fonction de formatage avancée
     function formatDestination(text) {
         let clean = text.replace(/GARE DE /gi, '').trim().toLowerCase();
-        
-        // Cas spécifique : Cergy le Haut -> Cergy - Le Haut
         if (clean === "cergy le haut") return "Cergy - Le Haut";
-        
-        // Formatage standard pour les autres destinations
         return clean.split(/([ -])/).map(part => {
             if (part === " " || part === "-") return part;
             const exceptions = ["de", "la", "le"];
-            // "le" prend une majuscule seulement si c'est "Le Haut" ou au début
             if (exceptions.includes(part) && clean.indexOf(part) !== 0 && !clean.includes("le haut")) return part;
             return part.charAt(0).toUpperCase() + part.slice(1);
         }).join('');
@@ -247,7 +224,8 @@
     setInterval(updateClock, 1000);
     updateClock();
     fetchSchedules();
-    setInterval(fetchSchedules, 30000);
+    // ACTUALISATION TOUTES LES 10 SECONDES
+    setInterval(fetchSchedules, 10000);
 </script>
 </body>
 </html>

@@ -12,6 +12,7 @@
             --bg-page: #f5f5f5;
             --grey-border: #666;
             --grey-bg: #eee;
+            --info-bg: #e0e6e9; /* Couleur de fond de l'encart info */
         }
         body { background: var(--bg-page); font-family: 'Cabin', sans-serif; margin: 0; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
         
@@ -40,7 +41,6 @@
         
         .board { flex-grow: 1; padding: 0 20px; overflow: hidden; display: flex; flex-direction: column; }
         
-        /* --- NOUVELLE LOGIQUE DE LIGNE --- */
         .row { 
             display: grid; 
             grid-template-columns: 100px 1fr 220px 100px; 
@@ -48,70 +48,98 @@
             padding: 15px 0; 
             border-bottom: 2px solid #ddd;
             background: var(--bg-page);
-            transition: transform 0.6s ease-in, opacity 0.5s ease-in, height 0.6s ease, padding 0.6s ease, margin 0.6s ease;
-            height: 70px; /* Hauteur fixe pour une transition fluide */
+            transition: transform 0.6s ease-in, opacity 0.5s ease-in, height 0.6s ease, padding 0.6s ease;
+            height: 70px;
             overflow: hidden;
         }
 
-        /* Animation de sortie : glisse à gauche et s'écrase pour faire remonter les autres */
-        .row.exit-left {
-            transform: translateX(-120%);
-            opacity: 0;
-            height: 0;
-            padding-top: 0;
-            padding-bottom: 0;
-            margin-bottom: -2px; /* Compense la bordure */
-            border-bottom: none;
-        }
+        .row.exit-left { transform: translateX(-120%); opacity: 0; height: 0; padding-top: 0; padding-bottom: 0; border-bottom: none; }
 
-        /* Animation d'entrée pour les nouvelles lignes du bas */
         @keyframes slideInFromBottom {
             0% { transform: translateY(50px); opacity: 0; }
             100% { transform: translateY(0); opacity: 1; }
         }
-        .row.new-row {
-            animation: slideInFromBottom 0.5s ease-out forwards;
-        }
+        .row.new-row { animation: slideInFromBottom 0.5s ease-out forwards; }
 
         .mission { background: #ddd; padding: 6px; border-radius: 4px; text-align: center; font-weight: bold; font-family: monospace; font-size: 16px; }
         .dest { font-size: 28px; font-weight: 700; padding-left: 15px; color: var(--dark); }
         
-        @keyframes slideIn {
-            0% { transform: translateY(10px); opacity: 0; }
-            100% { transform: translateY(0); opacity: 1; }
-        }
+        .time { background: var(--dark); color: var(--yellow); border-radius: 8px; text-align: center; width: 190px; height: 60px; display: flex; justify-content: center; align-items: center; justify-self: center; overflow: hidden; }
+        .time-wrapper { display: flex; flex-direction: column; align-items: center; justify-content: center; width: 100%; }
+        .blinking { animation: blinker 1.2s linear infinite; }
         @keyframes blinker { 50% { opacity: 0; } }
 
-        .time { 
-            background: var(--dark); 
-            color: var(--yellow); 
-            border-radius: 8px; 
-            text-align: center; 
-            width: 190px;
-            height: 60px; 
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            justify-self: center;
-            overflow: hidden;
-        }
-
-        .time-wrapper { display: flex; flex-direction: column; align-items: center; justify-content: center; width: 100%; }
-        .animate-text { animation: slideIn 0.5s ease-out; }
-        .blinking { animation: blinker 1.2s linear infinite; }
-
-        .time .val, .time .full-text { font-size: 32px; font-weight: bold; line-height: 0.85; text-transform: uppercase; display: block; }
-        .time .unit { font-size: 14px; margin-top: 2px; text-transform: lowercase; font-weight: bold; display: block; }
+        .time .val, .time .full-text { font-size: 32px; font-weight: bold; line-height: 0.85; text-transform: uppercase; }
+        .time .unit { font-size: 14px; margin-top: 2px; text-transform: lowercase; font-weight: bold; }
 
         .platform { display: flex; justify-content: center; border-left: 1px solid #ccc; padding-left: 10px; }
-        .platform-box {
-            background: var(--grey-bg); border: 2.5px solid var(--grey-border); border-radius: 8px;
-            width: 60px; height: 60px;
-            display: flex; flex-direction: column; align-items: center; justify-content: center;
-            box-sizing: border-box; color: var(--dark); line-height: 1;
-        }
-        .platform-text { font-size: 10px; text-transform: uppercase; font-weight: bold; margin-bottom: 2px; }
+        .platform-box { background: var(--grey-bg); border: 2.5px solid var(--grey-border); border-radius: 8px; width: 60px; height: 60px; display: flex; flex-direction: column; align-items: center; justify-content: center; box-sizing: border-box; color: var(--dark); }
+        .platform-text { font-size: 10px; text-transform: uppercase; font-weight: bold; }
         .platform-num { font-size: 24px; font-weight: 900; }
+
+        /* --- ENCART PERTURBATIONS (Style Photo) --- */
+        .info-trafic {
+            background: white;
+            height: 80px;
+            display: flex;
+            align-items: center;
+            padding: 0 20px;
+            border-top: 1px solid #ccc;
+            position: relative;
+            z-index: 5;
+        }
+
+        .info-logo-group {
+            display: flex;
+            align-items: center;
+            position: relative;
+            margin-right: 20px;
+            flex-shrink: 0;
+        }
+
+        .logo-a-small {
+            background: var(--red-a); color: white;
+            width: 35px; height: 35px; border-radius: 6px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 24px; font-weight: 900;
+        }
+
+        /* La petite croix rouge de la photo */
+        .logo-status-x {
+            position: absolute;
+            bottom: -5px; right: -8px;
+            background: #ff0000; color: white;
+            width: 18px; height: 18px; border-radius: 4px;
+            border: 2px solid white;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 14px; font-weight: bold;
+        }
+
+        .info-scroll-container {
+            flex-grow: 1;
+            overflow: hidden;
+            white-space: nowrap;
+            font-size: 20px;
+            font-weight: bold;
+            color: #333;
+        }
+
+        .info-text {
+            display: inline-block;
+            padding-left: 100%;
+            animation: marquee 25s linear infinite;
+        }
+
+        @keyframes marquee {
+            0% { transform: translate(0, 0); }
+            100% { transform: translate(-100%, 0); }
+        }
+
+        .time-box { /* Style pour les heures dans le texte */
+            background: #333; color: white;
+            padding: 2px 6px; border-radius: 4px;
+            font-family: monospace;
+        }
 
         footer { background: #333; color: #0f0; padding: 10px 20px; font-family: monospace; font-size: 11px; z-index: 10; }
     </style>
@@ -134,13 +162,25 @@
 
 <div class="board" id="board"></div>
 
+<div class="info-trafic" id="info-trafic-bar" style="display:none;">
+    <div class="info-logo-group">
+        <div class="logo-a-small">A</div>
+        <div class="logo-status-x">×</div>
+    </div>
+    <div class="info-scroll-container">
+        <div class="info-text" id="traffic-message">Chargement de l'info trafic...</div>
+    </div>
+</div>
+
 <footer id="debug">Prêt.</footer>
 
 <script>
     const API_KEY = '2pz4kMqzVx2zneQWOTnOrqM6muPE1XVO';
     const MONITORING_REF = 'STIF:StopArea:SP:70640:'; 
+    const LINE_REF = 'STIF:Line::C01742:'; // RER A
+    
     let lastTimes = {};
-    let currentTrainsData = []; // Stockage des trains affichés
+    let currentTrainsData = [];
     let isAnimating = false;
 
     function updateClock() {
@@ -158,21 +198,46 @@
         }).join('');
     }
 
-    async function fetchSchedules() {
-        if (isAnimating) return; // Évite de casser l'animation de sortie
+    async function fetchTrafficInfo() {
+        const url = `https://prim.iledefrance-mobilites.fr/marketplace/service-status?LineRef=${LINE_REF}`;
+        const proxy = `https://corsproxy.io/?${encodeURIComponent(url)}`;
+        
+        try {
+            const response = await fetch(proxy, { headers: { 'apiKey': API_KEY } });
+            const data = await response.json();
+            const situations = data.Siri?.ServiceDelivery?.SituationExchangeDelivery?.[0]?.Situations?.PtSituationElement || [];
+            
+            const messages = situations
+                .filter(s => s.Severity !== "noHazard")
+                .map(s => s.Summary[0]?.value + " : " + s.Description[0]?.value)
+                .join(' ### ');
 
+            const bar = document.getElementById('info-trafic-bar');
+            const txt = document.getElementById('traffic-message');
+
+            if (messages) {
+                // On remplace les heures type 19:00 par le style avec fond noir de la photo
+                const formatted = messages.replace(/(\d{1,2}:\d{2})/g, '<span class="time-box">$1</span>');
+                txt.innerHTML = formatted + " — " + formatted; // Doublé pour le défilement infini
+                bar.style.display = 'flex';
+            } else {
+                bar.style.display = 'none';
+            }
+        } catch (e) {
+            console.error("Trafic error", e);
+        }
+    }
+
+    async function fetchSchedules() {
+        if (isAnimating) return;
         const debug = document.getElementById('debug');
         const url = `https://prim.iledefrance-mobilites.fr/marketplace/stop-monitoring?MonitoringRef=${MONITORING_REF}`;
         const proxy = `https://corsproxy.io/?${encodeURIComponent(url)}`;
 
         try {
-            const response = await fetch(proxy, {
-                method: 'GET',
-                headers: { 'apiKey': API_KEY, 'Accept': 'application/json' }
-            });
+            const response = await fetch(proxy, { headers: { 'apiKey': API_KEY } });
             const data = await response.json();
             const visits = data.Siri?.ServiceDelivery?.StopMonitoringDelivery?.[0]?.MonitoredStopVisit || [];
-            
             processUpdate(visits);
             debug.innerText = `> Flux OK - ${new Date().toLocaleTimeString()}`;
         } catch (e) {
@@ -190,33 +255,20 @@
                 const line = j.LineRef?.value || "";
                 if (!line.includes('C01742') && line !== 'A') return false;
                 const aimedTime = j.MonitoredCall.AimedDepartureTime;
-                const destName = j.DestinationName[0].value;
-                const uniqueKey = `${destName}_${aimedTime}`;
+                const uniqueKey = `${j.DestinationName[0].value}_${aimedTime}`;
                 if (seen.has(uniqueKey)) return false;
                 seen.add(uniqueKey);
-                const expTime = new Date(j.MonitoredCall.ExpectedDepartureTime || j.MonitoredCall.AimedDepartureTime);
-                const isAtStop = j.MonitoredCall.VehicleAtStop === true || j.MonitoredCall.VehicleAtStop === "true";
-                if (!isAtStop && (expTime - now) < -15000) return false;
-                return !destName.toLowerCase().includes('boissy') && !destName.toLowerCase().includes('varenne');
+                return !j.DestinationName[0].value.toLowerCase().includes('boissy') && !j.DestinationName[0].value.toLowerCase().includes('varenne');
             })
-            .sort((a, b) => {
-                const tA = new Date(a.MonitoredCall.ExpectedDepartureTime || a.MonitoredCall.AimedDepartureTime);
-                const tB = new Date(b.MonitoredCall.ExpectedDepartureTime || b.MonitoredCall.AimedDepartureTime);
-                return tA - tB;
-            })
+            .sort((a, b) => new Date(a.MonitoredCall.ExpectedDepartureTime || a.MonitoredCall.AimedDepartureTime) - new Date(b.MonitoredCall.ExpectedDepartureTime || b.MonitoredCall.AimedDepartureTime))
             .slice(0, 7);
 
-        // Détection du départ du premier train
         if (currentTrainsData.length > 0 && newTrains.length > 0) {
-            const oldFirstId = currentTrainsData[0].FramedVehicleJourneyRef?.DatedVehicleJourneyRef;
-            const newFirstId = newTrains[0].FramedVehicleJourneyRef?.DatedVehicleJourneyRef;
-
-            if (oldFirstId !== newFirstId) {
+            if (currentTrainsData[0].FramedVehicleJourneyRef?.DatedVehicleJourneyRef !== newTrains[0].FramedVehicleJourneyRef?.DatedVehicleJourneyRef) {
                 triggerDepartureAnimation(newTrains);
                 return;
             }
         }
-
         render(newTrains);
     }
 
@@ -225,8 +277,6 @@
         if (firstRow) {
             isAnimating = true;
             firstRow.classList.add('exit-left');
-            
-            // On attend la fin de l'animation CSS (0.6s) pour reconstruire le DOM
             setTimeout(() => {
                 render(newTrains);
                 isAnimating = false;
@@ -247,57 +297,23 @@
             return;
         }
 
-        trains.forEach((j, index) => {
+        trains.forEach(j => {
             const dest = formatDestination(j.DestinationName[0].value);
             const mission = j.JourneyNote?.[0]?.value || "----";
             const time = new Date(j.MonitoredCall.ExpectedDepartureTime || j.MonitoredCall.AimedDepartureTime);
             const diff = Math.round((time - now) / 60000);
-            const aimedTime = j.MonitoredCall.AimedDepartureTime;
-            const uniqueKeyForMem = `${mission}_${aimedTime}`;
-
-            const platformData = j.MonitoredCall.DeparturePlatformName;
-            const platform = (platformData && typeof platformData === 'object') ? platformData.value : (platformData || "2");
             const isAtStop = j.MonitoredCall.VehicleAtStop === true || j.MonitoredCall.VehicleAtStop === "true";
-
-            let currentStatus = "";
-            let timeHTML = "";
-            let statusClass = "";
             
-            if (isAtStop) {
-                currentStatus = "QUAI";
-                timeHTML = `<span class="full-text">À quai</span>`;
-            } else if (diff <= 0) {
-                currentStatus = "APPROCHE";
-                timeHTML = `<span class="full-text">À l'approche</span>`;
-                statusClass = "blinking";
-            } else {
-                currentStatus = `${diff}`;
-                timeHTML = `<span class="val">${diff}</span><span class="unit">min</span>`;
-            }
-
-            // Animation de mise à jour des minutes (slideIn interne)
-            const hasChanged = lastTimes[uniqueKeyForMem] !== undefined && lastTimes[uniqueKeyForMem] !== currentStatus;
-            const animClass = hasChanged ? 'animate-text' : '';
-            lastTimes[uniqueKeyForMem] = currentStatus;
-
-            // Détection si c'est un nouveau train qui arrive en bas de liste
+            let timeHTML = (isAtStop) ? '<span class="full-text">À quai</span>' : (diff <= 0 ? '<span class="full-text">À l\'approche</span>' : `<span class="val">${diff}</span><span class="unit">min</span>`);
+            let statusClass = (diff <= 0 && !isAtStop) ? 'blinking' : '';
             const isNewRow = !currentTrainsData.some(old => old.FramedVehicleJourneyRef?.DatedVehicleJourneyRef === j.FramedVehicleJourneyRef?.DatedVehicleJourneyRef);
 
             html += `
-                <div class="row ${isNewRow ? 'new-row' : ''}" data-id="${j.FramedVehicleJourneyRef?.DatedVehicleJourneyRef}">
+                <div class="row ${isNewRow ? 'new-row' : ''}">
                     <div class="mission">${mission}</div>
                     <div class="dest">${dest}</div>
-                    <div class="time">
-                        <div class="time-wrapper ${statusClass} ${animClass}">
-                            ${timeHTML}
-                        </div>
-                    </div>
-                    <div class="platform">
-                        <div class="platform-box">
-                            <span class="platform-text">Quai</span>
-                            <span class="platform-num">${platform}</span>
-                        </div>
-                    </div>
+                    <div class="time"><div class="time-wrapper ${statusClass}">${timeHTML}</div></div>
+                    <div class="platform"><div class="platform-box"><span class="platform-text">Quai</span><span class="platform-num">${j.MonitoredCall.DeparturePlatformName?.value || "2"}</span></div></div>
                 </div>`;
         });
 
@@ -307,8 +323,13 @@
 
     setInterval(updateClock, 1000);
     updateClock();
+    
+    // Fréquences différentes pour les horaires et le trafic
     fetchSchedules();
     setInterval(fetchSchedules, 10000);
+    
+    fetchTrafficInfo();
+    setInterval(fetchTrafficInfo, 60000); // Mise à jour trafic toutes les minutes
 </script>
 </body>
 </html>

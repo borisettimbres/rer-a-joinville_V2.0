@@ -6,7 +6,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Cabin:wght@700&display=swap" rel="stylesheet">
     <style>
         :root { 
-            --red-a: #c0333a; 
+            --red-a: #CE283C; /* Mise à jour avec le rouge exact de l'image */
             --dark: #000000;
             --yellow: #fbc02d; 
             --bg-page: #f5f5f5;
@@ -24,16 +24,19 @@
         .header-left { display: flex; align-items: center; }
         .logos-container { display: flex; gap: 8px; align-items: center; }
         
+        /* Typographie forcée sur Arial/Helvetica pour se rapprocher de la police "Parisine" officielle */
         .logo-rer {
             background: white; border: 2.5px solid var(--dark); border-radius: 8px;
             width: 48px; height: 48px; display: flex; align-items: center; justify-content: center;
-            font-size: 14px; font-weight: 900; color: var(--dark); box-sizing: border-box;
+            font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+            font-size: 16px; font-weight: bold; color: var(--dark); box-sizing: border-box;
         }
         
         .logo-a {
-            background: var(--red-a); border-radius: 8px;
+            background: var(--red-a); border-radius: 10px;
             width: 48px; height: 48px; display: flex; align-items: center; justify-content: center;
-            font-size: 36px; font-weight: 900; color: white; box-sizing: border-box;
+            font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+            font-size: 34px; font-weight: bold; color: white; box-sizing: border-box;
         }
         
         .station-info { margin-left: 15px; }
@@ -102,35 +105,37 @@
         .logo-works .logo-a-box { background: var(--red-a); color: white; width: 45px; height: 45px; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 32px; font-weight: 900; position: absolute; top: 0; left: 0; }
         .logo-status-cone { position: absolute; bottom: -5px; right: -10px; width: 32px; height: 32px; background: url('https://upload.wikimedia.org/wikipedia/commons/3/3b/Road_cone.png') no-repeat center; background-size: contain; }
 
-        /* --- NOUVELLES ICONS LIGNES DYNAMIQUES (ZONE DE GAUCHE) --- */
+        /* --- ICONS LIGNES DYNAMIQUES (ZONE DE GAUCHE) --- */
         .line-icon-main {
             display: none; align-items: center; justify-content: center;
-            font-weight: 900; font-family: 'Cabin', sans-serif;
+            font-family: "Helvetica Neue", Helvetica, Arial, sans-serif; /* Typographie plus neutre */
+            font-weight: bold; 
             width: 45px; height: 45px; flex-shrink: 0; box-sizing: border-box;
         }
-        .line-icon-main.icon-rer { border-radius: 8px; font-size: 30px; }
-        .line-icon-main.icon-m { border-radius: 50%; font-size: 28px; }
+        .line-icon-main.icon-rer { border-radius: 10px; font-size: 28px; } /* Coins un peu plus arrondis */
+        .line-icon-main.icon-m { border-radius: 50%; font-size: 26px; }
 
-        /* Couleurs officielles IDFM / RATP */
-        .bg-rer-a { background-color: #E3051C; color: white; }
-        .bg-rer-b { background-color: #5291CE; color: white; }
-        .bg-rer-c { background-color: #FFCE00; color: black; }
-        .bg-rer-d { background-color: #00814F; color: white; }
-        .bg-rer-e { background-color: #D13083; color: white; }
-        .bg-m1 { background-color: #FFCE00; color: black; }
-        .bg-m2 { background-color: #0064B0; color: white; }
-        .bg-m3 { background-color: #9F9825; color: white; }
-        .bg-m4 { background-color: #BE418D; color: white; }
-        .bg-m5 { background-color: #F3A447; color: black; }
-        .bg-m6 { background-color: #83C491; color: black; }
-        .bg-m7 { background-color: #F3A4BA; color: black; }
-        .bg-m8 { background-color: #CEADD2; color: black; }
-        .bg-m9 { background-color: #D5C900; color: black; }
-        .bg-m10 { background-color: #E3B32A; color: black; }
-        .bg-m11 { background-color: #8D5E2A; color: white; }
-        .bg-m12 { background-color: #00814F; color: white; }
-        .bg-m13 { background-color: #98D4E2; color: black; }
-        .bg-m14 { background-color: #662483; color: white; }
+        /* Codes couleurs extraits de l'image officielle */
+        .bg-rer-a { background-color: #CE283C; color: white; }
+        .bg-rer-b { background-color: #5780B8; color: white; }
+        .bg-rer-c { background-color: #F2C94C; color: black; }
+        .bg-rer-d { background-color: #1A865B; color: white; }
+        .bg-rer-e { background-color: #9A4F8A; color: white; }
+
+        .bg-m1 { background-color: #F5C946; color: black; }
+        .bg-m2 { background-color: #2163A0; color: white; }
+        .bg-m3 { background-color: #92953F; color: white; }
+        .bg-m4 { background-color: #9E4A86; color: white; }
+        .bg-m5 { background-color: #D97E4A; color: black; }
+        .bg-m6 { background-color: #75B581; color: black; }
+        .bg-m7 { background-color: #E695A6; color: black; }
+        .bg-m8 { background-color: #B496BD; color: black; }
+        .bg-m9 { background-color: #B9BA44; color: black; }
+        .bg-m10 { background-color: #D4A849; color: black; }
+        .bg-m11 { background-color: #7D5A37; color: white; }
+        .bg-m12 { background-color: #14845F; color: white; }
+        .bg-m13 { background-color: #8AC7CB; color: black; }
+        .bg-m14 { background-color: #48286C; color: white; }
 
         .info-scroll-container { flex-grow: 1; height: 100%; display: flex; align-items: center; overflow: hidden; position: relative; }
         .info-text { font-size: 24px; font-weight: 700; color: var(--info-text); width: 100%; display: flex; align-items: center; transition: transform 0.5s ease-in-out, opacity 0.5s; opacity: 1; transform: translateY(0); }
@@ -260,7 +265,6 @@
             
             let formattedText = current.text.replace(/(\d{1,2}h\d{2}|\d{1,2}:\d{2})/g, '<span class="time-box">$1</span>');
 
-            // On cache toutes les icônes par défaut
             iconStd.style.display = 'none';
             iconInc.style.display = 'none';
             iconWorks.style.display = 'none';
@@ -269,7 +273,6 @@
             if (current.type === 'default') {
                 iconStd.style.display = 'flex';
             } else if (current.line) {
-                // S'il s'agit d'une ligne (RER B, M1...), on affiche son logo à la place du carré rouge
                 const isRer = current.line.startsWith('RER');
                 const shortName = current.line.replace('RER ', '').replace('M', ''); 
                 const shapeClass = isRer ? 'icon-rer' : 'icon-m';
@@ -279,7 +282,6 @@
                 iconDyn.innerText = shortName;
                 iconDyn.style.display = 'flex';
             } else {
-                // Fallback (sécurité) si le message n'a pas de ligne associée
                 if (current.type === 'incident') iconInc.style.display = 'block';
                 else if (current.type === 'works') iconWorks.style.display = 'block';
             }
@@ -380,7 +382,7 @@
     setInterval(fetchSchedules, 20000);
     fetchGlobalTraffic();
     setInterval(fetchGlobalTraffic, 240000); 
-    setInterval(rotateMessage, 5000); // 5 secondes
+    setInterval(rotateMessage, 5000);
 </script>
 </body>
 </html>

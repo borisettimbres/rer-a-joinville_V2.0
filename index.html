@@ -99,38 +99,17 @@
         .logo-status-x { position: absolute; bottom: -5px; right: -8px; background: #000; color: white; width: 20px; height: 20px; border-radius: 4px; border: 2px solid white; display: flex; align-items: center; justify-content: center; font-size: 14px; font-weight: bold; }
 
         .logo-works { position: relative; display: none; width: 60px; height: 60px; }
-        .logo-works .logo-a-box { 
-            background: var(--red-a); color: white; width: 45px; height: 45px; border-radius: 8px; 
-            display: flex; align-items: center; justify-content: center; font-size: 32px; font-weight: 900; 
-            position: absolute; top: 0; left: 0;
-        }
-        .logo-status-cone { 
-            position: absolute; 
-            bottom: -5px; right: -10px; width: 32px; height: 32px; 
-            background: url('https://upload.wikimedia.org/wikipedia/commons/3/3b/Road_cone.png') no-repeat center; background-size: contain;
-        }
+        .logo-works .logo-a-box { background: var(--red-a); color: white; width: 45px; height: 45px; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 32px; font-weight: 900; position: absolute; top: 0; left: 0; }
+        .logo-status-cone { position: absolute; bottom: -5px; right: -10px; width: 32px; height: 32px; background: url('https://upload.wikimedia.org/wikipedia/commons/3/3b/Road_cone.png') no-repeat center; background-size: contain; }
 
-        .info-scroll-container { 
-            flex-grow: 1; height: 100%; display: flex; align-items: center; overflow: hidden; position: relative;
-        }
-
-        .info-text { 
-            font-size: 24px; font-weight: 700; color: var(--info-text); width: 100%; display: flex; align-items: center;
-            transition: transform 0.5s ease-in-out, opacity 0.5s; opacity: 1; transform: translateY(0);
-        }
-
-        .slide-up-exit { transform: translateY(-100%); opacity: 0; }
-        .slide-up-enter { transform: translateY(100%); opacity: 0; }
-        .time-box { background: #333; color: white; padding: 2px 6px; border-radius: 4px; font-family: monospace; }
-
-        /* --- ICONS LIGNES DYNAMIQUES --- */
-        .line-badge {
-            display: inline-flex; align-items: center; justify-content: center;
+        /* --- NOUVELLES ICONS LIGNES DYNAMIQUES (ZONE DE GAUCHE) --- */
+        .line-icon-main {
+            display: none; align-items: center; justify-content: center;
             font-weight: 900; font-family: 'Cabin', sans-serif;
-            margin-right: 15px; flex-shrink: 0; box-sizing: border-box;
+            width: 45px; height: 45px; flex-shrink: 0; box-sizing: border-box;
         }
-        .line-badge.icon-rer { width: 38px; height: 38px; border-radius: 8px; font-size: 24px; }
-        .line-badge.icon-m { width: 38px; height: 38px; border-radius: 50%; font-size: 22px; }
+        .line-icon-main.icon-rer { border-radius: 8px; font-size: 30px; }
+        .line-icon-main.icon-m { border-radius: 50%; font-size: 28px; }
 
         /* Couleurs officielles IDFM / RATP */
         .bg-rer-a { background-color: #E3051C; color: white; }
@@ -152,6 +131,12 @@
         .bg-m-12 { background-color: #00814F; color: white; }
         .bg-m-13 { background-color: #98D4E2; color: black; }
         .bg-m-14 { background-color: #662483; color: white; }
+
+        .info-scroll-container { flex-grow: 1; height: 100%; display: flex; align-items: center; overflow: hidden; position: relative; }
+        .info-text { font-size: 24px; font-weight: 700; color: var(--info-text); width: 100%; display: flex; align-items: center; transition: transform 0.5s ease-in-out, opacity 0.5s; opacity: 1; transform: translateY(0); }
+        .slide-up-exit { transform: translateY(-100%); opacity: 0; }
+        .slide-up-enter { transform: translateY(100%); opacity: 0; }
+        .time-box { background: #333; color: white; padding: 2px 6px; border-radius: 4px; font-family: monospace; }
 
         footer { background: #333; color: #aaa; padding: 10px 20px; font-family: monospace; font-size: 11px; z-index: 10; display: flex; justify-content: space-between; }
         .api-ok { color: var(--ok-color); font-weight: bold; }
@@ -178,6 +163,7 @@
         <div id="icon-standard" class="icon-info-blue">i</div>
         <div id="icon-incident" class="logo-incident"><div class="logo-box">!</div><div class="logo-status-x">×</div></div>
         <div id="icon-works" class="logo-works"><div class="logo-a-box">A</div><div class="logo-status-cone"></div></div>
+        <div id="icon-dynamic" class="line-icon-main"></div>
     </div>
     <div class="info-scroll-container">
         <div class="info-text" id="traffic-message">Connexion au réseau PRIM...</div>
@@ -242,7 +228,6 @@
 
                             if (isRERA || isIncident) {
                                 let type = isWork ? 'works' : 'incident';
-                                // On passe l'identifiant de ligne (ex: "RER A" ou "M1") au lieu de formater le texte
                                 newQueue.push({text: text, type: type, line: LINE_MAP[id]});
                             }
                         }
@@ -264,6 +249,7 @@
         const iconStd = document.getElementById('icon-standard');
         const iconInc = document.getElementById('icon-incident');
         const iconWorks = document.getElementById('icon-works');
+        const iconDyn = document.getElementById('icon-dynamic');
 
         if (displayQueue.length === 0) return;
         txtNode.classList.add('slide-up-exit');
@@ -272,128 +258,16 @@
             if (queueIndex >= displayQueue.length) queueIndex = 0;
             const current = displayQueue[queueIndex];
             
-            // Formatage des heures dans le texte
             let formattedText = current.text.replace(/(\d{1,2}h\d{2}|\d{1,2}:\d{2})/g, '<span class="time-box">$1</span>');
 
-            // --- NOUVEAUTÉ : Ajout du logo de la ligne ---
-            if (current.line && current.type !== 'default') {
-                const isRer = current.line.startsWith('RER');
-                // Extrait juste la lettre ou le chiffre (A, B, 1, 14...)
-                const shortName = current.line.replace('RER ', '').replace('M', ''); 
-                const shapeClass = isRer ? 'icon-rer' : 'icon-m';
-                // Construit la classe couleur (ex: bg-rer-a, bg-m-14)
-                const colorClass = `bg-${current.line.replace(' ', '-').toLowerCase()}`; 
-                
-                // Insère le badge devant le texte
-                formattedText = `<span class="line-badge ${shapeClass} ${colorClass}">${shortName}</span><span>${formattedText}</span>`;
-            }
-
-            txtNode.innerHTML = formattedText;
-
-            // Gestion de l'icône de gauche (Info, Incident, Travaux)
+            // On cache toutes les icônes par défaut
             iconStd.style.display = 'none';
             iconInc.style.display = 'none';
             iconWorks.style.display = 'none';
+            iconDyn.style.display = 'none';
 
-            if (current.type === 'default') iconStd.style.display = 'flex';
-            else if (current.type === 'incident') iconInc.style.display = 'block';
-            else if (current.type === 'works') iconWorks.style.display = 'block';
-
-            txtNode.classList.remove('slide-up-exit');
-            txtNode.classList.add('slide-up-enter');
-            txtNode.offsetHeight;
-            txtNode.classList.remove('slide-up-enter');
-
-            queueIndex = (queueIndex + 1) % displayQueue.length;
-        }, 500);
-    }
-
-    async function fetchSchedules() {
-        if (isAnimating) return;
-        const debug = document.getElementById('debug-schedules');
-        const url = `https://prim.iledefrance-mobilites.fr/marketplace/stop-monitoring?MonitoringRef=${MONITORING_REF}`;
-        const proxy = `https://corsproxy.io/?${encodeURIComponent(url)}`;
-        
-        try {
-            const response = await fetch(proxy, { headers: { 'apikey': API_KEY, 'Accept': 'application/json' } });
-            if (!response.ok) throw new Error(`HTTP ${response.status}`);
-            const data = await response.json();
-            const visits = data.Siri?.ServiceDelivery?.StopMonitoringDelivery?.[0]?.MonitoredStopVisit || [];
-            processUpdate(visits);
-            debug.innerHTML = `> SIEL OK - ${new Date().toLocaleTimeString()}`;
-        } catch (e) { 
-            debug.innerHTML = `<span class="api-ko">> SIEL HS</span>`; 
-        }
-    }
-
-    function processUpdate(visits) {
-        const seen = new Set();
-        let newTrains = visits.map(v => v.MonitoredVehicleJourney).filter(j => {
-            const line = j.LineRef?.value || "";
-            if (!line.includes('C01742') && line !== 'A') return false;
-            const uniqueKey = `${j.DestinationName[0].value}_${j.MonitoredCall.AimedDepartureTime}`;
-            if (seen.has(uniqueKey)) return false;
-            seen.add(uniqueKey);
-            const destName = j.DestinationName[0].value.toLowerCase();
-            return !destName.includes('boissy') && !destName.includes('varenne');
-        }).sort((a, b) => new Date(a.MonitoredCall.ExpectedDepartureTime || a.MonitoredCall.AimedDepartureTime) - new Date(b.MonitoredCall.ExpectedDepartureTime || b.MonitoredCall.AimedDepartureTime)).slice(0, 7);
-        
-        if (currentTrainsData.length > 0 && newTrains.length > 0) {
-            if (currentTrainsData[0].FramedVehicleJourneyRef?.DatedVehicleJourneyRef !== newTrains[0].FramedVehicleJourneyRef?.DatedVehicleJourneyRef) {
-                triggerDepartureAnimation(newTrains); return;
-            }
-        }
-        render(newTrains);
-    }
-
-    function triggerDepartureAnimation(newTrains) {
-        const firstRow = document.querySelector('.row');
-        if (firstRow) {
-            isAnimating = true;
-            firstRow.classList.add('exit-left');
-            setTimeout(() => { render(newTrains); isAnimating = false; }, 600);
-        } else { render(newTrains); }
-    }
-
-    function render(trains) {
-        const board = document.getElementById('board');
-        const now = new Date();
-        let html = '';
-        if (trains.length === 0) { board.innerHTML = '<div style="text-align:center;margin-top:100px;color:#999;">Aucun train.</div>'; return; }
-        trains.forEach(j => {
-            const dest = formatDestination(j.DestinationName[0].value);
-            const mission = j.JourneyNote?.[0]?.value || "----";
-            const time = new Date(j.MonitoredCall.ExpectedDepartureTime || j.MonitoredCall.AimedDepartureTime);
-            const diff = Math.round((time - now) / 60000);
-            const isAtStop = j.MonitoredCall.VehicleAtStop === true || j.MonitoredCall.VehicleAtStop === "true";
-            let timeHTML = (isAtStop) ? '<span class="full-text">À quai</span>' : (diff <= 0 ? '<span class="full-text">À l\'approche</span>' : `<span class="val">${diff}</span><span class="unit">min</span>`);
-            let statusClass = (diff <= 0 && !isAtStop) ? 'blinking' : '';
-            const platformData = j.MonitoredCall.DeparturePlatformName;
-            const rawPlatform = (platformData && typeof platformData === 'object') ? platformData.value : platformData;
-            let platformHTML = (rawPlatform && rawPlatform !== "unknown") ? `<div class="platform"><div class="platform-box"><span class="platform-text">Quai</span><span class="platform-num">${rawPlatform}</span></div></div>` : '<div class="platform"></div>';
-            html += `<div class="row"><div class="mission">${mission}</div><div class="dest">${dest}</div><div class="time"><div class="time-wrapper ${statusClass}">${timeHTML}</div></div>${platformHTML}</div>`;
-        });
-        board.innerHTML = html;
-        currentTrainsData = trains;
-    }
-
-    function formatDestination(text) {
-        let clean = text.replace(/GARE DE /gi, '').trim().toLowerCase();
-        if (clean === "cergy le haut") return "Cergy - Le Haut";
-        return clean.split(/([ -])/).map(part => {
-            if ([" ", "-"].includes(part)) return part;
-            if (["de", "la", "le"].includes(part) && clean.indexOf(part) !== 0) return part;
-            return part.charAt(0).toUpperCase() + part.slice(1);
-        }).join('');
-    }
-
-    setInterval(updateClock, 1000);
-    updateClock();
-    fetchSchedules();
-    setInterval(fetchSchedules, 20000);
-    fetchGlobalTraffic();
-    setInterval(fetchGlobalTraffic, 240000); 
-    setInterval(rotateMessage, 10000);
-</script>
-</body>
-</html>
+            if (current.type === 'default') {
+                iconStd.style.display = 'flex';
+            } else if (current.line) {
+                // S'il s'agit d'une ligne (RER B, M1...), on affiche son logo à la place du carré rouge
+                const is

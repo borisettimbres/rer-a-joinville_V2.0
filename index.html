@@ -169,6 +169,7 @@
     const MONITORING_REF = 'STIF:StopArea:SP:70640:'; 
     const DEFAULT_MSG = "Attentifs, ensemble • Ne pas se séparer de ses effets personnels • Signaler tout objet abandonné ou situation inhabituelle";
 
+    // Mappage des IDs de lignes pour identification
     const LINE_MAP = {
         'C01742': 'RER A', 'C01743': 'RER B', 'C01744': 'RER C', 'C01745': 'RER D', 'C01746': 'RER E',
         'C01371': 'M1', 'C01372': 'M2', 'C01373': 'M3', 'C01374': 'M4', 'C01375': 'M5', 'C01376': 'M6',
@@ -188,13 +189,22 @@
     async function fetchGlobalTraffic() {
         const debugNode = document.getElementById('debug-traffic');
         
-        // On appelle l'API sans filtre URL pour récupérer tous les messages du réseau.
+        // On récupère TOUT le réseau sans utiliser de paramètres (pour éviter le bug du Swagger)
         const url = `https://prim.iledefrance-mobilites.fr/marketplace/general-message`;
         const proxy = `https://corsproxy.io/?${encodeURIComponent(url)}`;
         
         try {
-            const response = await fetch(proxy, { headers: { 'apiKey': API_KEY, 'Accept': 'application/json' } });
-            if (!response.ok) throw new Error("Erreur réseau");
+            const response = await fetch(proxy, { 
+                headers: { 
+                    'apikey': API_KEY, // Correction de la casse selon le Swagger
+                    'Accept': 'application/json' 
+                } 
+            });
+            
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}`);
+            }
+            
             const data = await response.json();
             const messages = data.Siri?.ServiceDelivery?.GeneralMessageDelivery?.[0]?.InfoMessage || [];
             
@@ -202,9 +212,10 @@
             
             messages.forEach(m => {
                 const contentLineRefs = m.Content?.LineRef || [];
-                const channel = m.InfoChannelRef?.value; // "Perturbation" (incident) ou "PlannedWork" (travaux)
+                const channel = m.InfoChannelRef?.value; 
                 
                 contentLineRefs.forEach(lRef => {
+                    // On extrait l'ID de la ligne (ex: C01742)
                     const idMatch = lRef.value.match(/C\d{5}/);
                     if (!idMatch) return;
                     const id = idMatch[0];
@@ -220,7 +231,7 @@
                             const isIncident = (channel === "Perturbation");
                             const isWork = (channel === "PlannedWork");
 
-                            // Règle : RER A (tout) OU Autres lignes (Uniquement incidents)
+                            // Filtre métier : TOUT pour le RER A, SEULEMENT les incidents pour les autres
                             if (isRERA || isIncident) {
                                 let type = isWork ? 'works' : 'incident';
                                 const formattedText = `[${lineName}] ${text}`;
@@ -231,11 +242,12 @@
                 });
             });
 
-            // Dédoublonnage au cas où plusieurs lignes partagent exactement le même texte
+            // Dédoublonnage au cas où plusieurs lignes partagent le même texte
             displayQueue = Array.from(new Set(newQueue.map(a => JSON.stringify(a)))).map(a => JSON.parse(a));
             debugNode.innerHTML = `<span class="api-ok">API TRAFFIC OK (${displayQueue.length-1} alertes)</span>`;
+            
         } catch (e) {
-            debugNode.innerHTML = '<span class="api-ko">API TRAFFIC : ERREUR</span>';
+            debugNode.innerHTML = `<span class="api-ko">API TRAFFIC : ERREUR (${e.message})</span>`;
         }
     }
 
@@ -275,15 +287,18 @@
         if (isAnimating) return;
         const debug = document.getElementById('debug-schedules');
         const url = `https://prim.iledefrance-mobilites.fr/marketplace/stop-monitoring?MonitoringRef=${MONITORING_REF}`;
-        const proxy = `https://corsproxy.io/?${encodeURIComponent(url)}`;
+        const proxy = `https://corsproxy.io/?${encodeURIComponent(url)}`; // Remise en place du proxy pour le SIEL
+        
         try {
-            const response = await fetch(proxy, { headers: { 'apiKey': API_KEY, 'Accept': 'application/json' } });
-            if (!response.ok) return;
+            const response = await fetch(proxy, { headers: { 'apikey': API_KEY, 'Accept': 'application/json' } });
+            if (!response.ok) throw new Error(`HTTP ${response.status}`);
             const data = await response.json();
             const visits = data.Siri?.ServiceDelivery?.StopMonitoringDelivery?.[0]?.MonitoredStopVisit || [];
             processUpdate(visits);
             debug.innerHTML = `> SIEL OK - ${new Date().toLocaleTimeString()}`;
-        } catch (e) { debug.innerHTML = '<span class="api-ko">> SIEL HS</span>'; }
+        } catch (e) { 
+            debug.innerHTML = `<span class="api-ko">> SIEL HS (${e.message})</span>`; 
+        }
     }
 
     function processUpdate(visits) {
@@ -297,6 +312,7 @@
             const destName = j.DestinationName[0].value.toLowerCase();
             return !destName.includes('boissy') && !destName.includes('varenne');
         }).sort((a, b) => new Date(a.MonitoredCall.ExpectedDepartureTime || a.MonitoredCall.AimedDepartureTime) - new Date(b.MonitoredCall.ExpectedDepartureTime || b.MonitoredCall.AimedDepartureTime)).slice(0, 7);
+        
         if (currentTrainsData.length > 0 && newTrains.length > 0) {
             if (currentTrainsData[0].FramedVehicleJourneyRef?.DatedVehicleJourneyRef !== newTrains[0].FramedVehicleJourneyRef?.DatedVehicleJourneyRef) {
                 triggerDepartureAnimation(newTrains); return;

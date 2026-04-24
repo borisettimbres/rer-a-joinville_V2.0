@@ -270,4 +270,117 @@
                 iconStd.style.display = 'flex';
             } else if (current.line) {
                 // S'il s'agit d'une ligne (RER B, M1...), on affiche son logo à la place du carré rouge
-                const is
+                const isRer = current.line.startsWith('RER');
+                const shortName = current.line.replace('RER ', '').replace('M', ''); 
+                const shapeClass = isRer ? 'icon-rer' : 'icon-m';
+                const colorClass = `bg-${current.line.replace(' ', '-').toLowerCase()}`; 
+                
+                iconDyn.className = `line-icon-main ${shapeClass} ${colorClass}`;
+                iconDyn.innerText = shortName;
+                iconDyn.style.display = 'flex';
+            } else {
+                // Fallback (sécurité) si le message n'a pas de ligne associée
+                if (current.type === 'incident') iconInc.style.display = 'block';
+                else if (current.type === 'works') iconWorks.style.display = 'block';
+            }
+
+            txtNode.innerHTML = formattedText;
+
+            txtNode.classList.remove('slide-up-exit');
+            txtNode.classList.add('slide-up-enter');
+            txtNode.offsetHeight;
+            txtNode.classList.remove('slide-up-enter');
+
+            queueIndex = (queueIndex + 1) % displayQueue.length;
+        }, 500);
+    }
+
+    async function fetchSchedules() {
+        if (isAnimating) return;
+        const debug = document.getElementById('debug-schedules');
+        const url = `https://prim.iledefrance-mobilites.fr/marketplace/stop-monitoring?MonitoringRef=${MONITORING_REF}`;
+        const proxy = `https://corsproxy.io/?${encodeURIComponent(url)}`;
+        
+        try {
+            const response = await fetch(proxy, { headers: { 'apikey': API_KEY, 'Accept': 'application/json' } });
+            if (!response.ok) throw new Error(`HTTP ${response.status}`);
+            const data = await response.json();
+            const visits = data.Siri?.ServiceDelivery?.StopMonitoringDelivery?.[0]?.MonitoredStopVisit || [];
+            processUpdate(visits);
+            debug.innerHTML = `> SIEL OK - ${new Date().toLocaleTimeString()}`;
+        } catch (e) { 
+            debug.innerHTML = `<span class="api-ko">> SIEL HS</span>`; 
+        }
+    }
+
+    function processUpdate(visits) {
+        const seen = new Set();
+        let newTrains = visits.map(v => v.MonitoredVehicleJourney).filter(j => {
+            const line = j.LineRef?.value || "";
+            if (!line.includes('C01742') && line !== 'A') return false;
+            const uniqueKey = `${j.DestinationName[0].value}_${j.MonitoredCall.AimedDepartureTime}`;
+            if (seen.has(uniqueKey)) return false;
+            seen.add(uniqueKey);
+            const destName = j.DestinationName[0].value.toLowerCase();
+            return !destName.includes('boissy') && !destName.includes('varenne');
+        }).sort((a, b) => new Date(a.MonitoredCall.ExpectedDepartureTime || a.MonitoredCall.AimedDepartureTime) - new Date(b.MonitoredCall.ExpectedDepartureTime || b.MonitoredCall.AimedDepartureTime)).slice(0, 7);
+        
+        if (currentTrainsData.length > 0 && newTrains.length > 0) {
+            if (currentTrainsData[0].FramedVehicleJourneyRef?.DatedVehicleJourneyRef !== newTrains[0].FramedVehicleJourneyRef?.DatedVehicleJourneyRef) {
+                triggerDepartureAnimation(newTrains); return;
+            }
+        }
+        render(newTrains);
+    }
+
+    function triggerDepartureAnimation(newTrains) {
+        const firstRow = document.querySelector('.row');
+        if (firstRow) {
+            isAnimating = true;
+            firstRow.classList.add('exit-left');
+            setTimeout(() => { render(newTrains); isAnimating = false; }, 600);
+        } else { render(newTrains); }
+    }
+
+    function render(trains) {
+        const board = document.getElementById('board');
+        const now = new Date();
+        let html = '';
+        if (trains.length === 0) { board.innerHTML = '<div style="text-align:center;margin-top:100px;color:#999;">Aucun train.</div>'; return; }
+        trains.forEach(j => {
+            const dest = formatDestination(j.DestinationName[0].value);
+            const mission = j.JourneyNote?.[0]?.value || "----";
+            const time = new Date(j.MonitoredCall.ExpectedDepartureTime || j.MonitoredCall.AimedDepartureTime);
+            const diff = Math.round((time - now) / 60000);
+            const isAtStop = j.MonitoredCall.VehicleAtStop === true || j.MonitoredCall.VehicleAtStop === "true";
+            let timeHTML = (isAtStop) ? '<span class="full-text">À quai</span>' : (diff <= 0 ? '<span class="full-text">À l\'approche</span>' : `<span class="val">${diff}</span><span class="unit">min</span>`);
+            let statusClass = (diff <= 0 && !isAtStop) ? 'blinking' : '';
+            const platformData = j.MonitoredCall.DeparturePlatformName;
+            const rawPlatform = (platformData && typeof platformData === 'object') ? platformData.value : platformData;
+            let platformHTML = (rawPlatform && rawPlatform !== "unknown") ? `<div class="platform"><div class="platform-box"><span class="platform-text">Quai</span><span class="platform-num">${rawPlatform}</span></div></div>` : '<div class="platform"></div>';
+            html += `<div class="row"><div class="mission">${mission}</div><div class="dest">${dest}</div><div class="time"><div class="time-wrapper ${statusClass}">${timeHTML}</div></div>${platformHTML}</div>`;
+        });
+        board.innerHTML = html;
+        currentTrainsData = trains;
+    }
+
+    function formatDestination(text) {
+        let clean = text.replace(/GARE DE /gi, '').trim().toLowerCase();
+        if (clean === "cergy le haut") return "Cergy - Le Haut";
+        return clean.split(/([ -])/).map(part => {
+            if ([" ", "-"].includes(part)) return part;
+            if (["de", "la", "le"].includes(part) && clean.indexOf(part) !== 0) return part;
+            return part.charAt(0).toUpperCase() + part.slice(1);
+        }).join('');
+    }
+
+    setInterval(updateClock, 1000);
+    updateClock();
+    fetchSchedules();
+    setInterval(fetchSchedules, 20000);
+    fetchGlobalTraffic();
+    setInterval(fetchGlobalTraffic, 240000); 
+    setInterval(rotateMessage, 5000); // 5 secondes
+</script>
+</body>
+</html>

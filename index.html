@@ -106,12 +106,8 @@
         }
         .logo-status-cone { 
             position: absolute; 
-            bottom: -5px; 
-            right: -10px; 
-            width: 32px; 
-            height: 32px; 
-            background: url('https://upload.wikimedia.org/wikipedia/commons/3/3b/Road_cone.png') no-repeat center; 
-            background-size: contain;
+            bottom: -5px; right: -10px; width: 32px; height: 32px; 
+            background: url('https://upload.wikimedia.org/wikipedia/commons/3/3b/Road_cone.png') no-repeat center; background-size: contain;
         }
 
         .info-scroll-container { 
@@ -119,14 +115,43 @@
         }
 
         .info-text { 
-            font-size: 24px; font-weight: 700; color: var(--info-text); width: 100%;
+            font-size: 24px; font-weight: 700; color: var(--info-text); width: 100%; display: flex; align-items: center;
             transition: transform 0.5s ease-in-out, opacity 0.5s; opacity: 1; transform: translateY(0);
         }
 
         .slide-up-exit { transform: translateY(-100%); opacity: 0; }
         .slide-up-enter { transform: translateY(100%); opacity: 0; }
-
         .time-box { background: #333; color: white; padding: 2px 6px; border-radius: 4px; font-family: monospace; }
+
+        /* --- ICONS LIGNES DYNAMIQUES --- */
+        .line-badge {
+            display: inline-flex; align-items: center; justify-content: center;
+            font-weight: 900; font-family: 'Cabin', sans-serif;
+            margin-right: 15px; flex-shrink: 0; box-sizing: border-box;
+        }
+        .line-badge.icon-rer { width: 38px; height: 38px; border-radius: 8px; font-size: 24px; }
+        .line-badge.icon-m { width: 38px; height: 38px; border-radius: 50%; font-size: 22px; }
+
+        /* Couleurs officielles IDFM / RATP */
+        .bg-rer-a { background-color: #E3051C; color: white; }
+        .bg-rer-b { background-color: #5291CE; color: white; }
+        .bg-rer-c { background-color: #FFCE00; color: black; }
+        .bg-rer-d { background-color: #00814F; color: white; }
+        .bg-rer-e { background-color: #D13083; color: white; }
+        .bg-m-1 { background-color: #FFCE00; color: black; }
+        .bg-m-2 { background-color: #0064B0; color: white; }
+        .bg-m-3 { background-color: #9F9825; color: white; }
+        .bg-m-4 { background-color: #BE418D; color: white; }
+        .bg-m-5 { background-color: #F3A447; color: black; }
+        .bg-m-6 { background-color: #83C491; color: black; }
+        .bg-m-7 { background-color: #F3A4BA; color: black; }
+        .bg-m-8 { background-color: #CEADD2; color: black; }
+        .bg-m-9 { background-color: #D5C900; color: black; }
+        .bg-m-10 { background-color: #E3B32A; color: black; }
+        .bg-m-11 { background-color: #8D5E2A; color: white; }
+        .bg-m-12 { background-color: #00814F; color: white; }
+        .bg-m-13 { background-color: #98D4E2; color: black; }
+        .bg-m-14 { background-color: #662483; color: white; }
 
         footer { background: #333; color: #aaa; padding: 10px 20px; font-family: monospace; font-size: 11px; z-index: 10; display: flex; justify-content: space-between; }
         .api-ok { color: var(--ok-color); font-weight: bold; }
@@ -169,7 +194,6 @@
     const MONITORING_REF = 'STIF:StopArea:SP:70640:'; 
     const DEFAULT_MSG = "Attentifs, ensemble • Ne pas se séparer de ses effets personnels • Signaler tout objet abandonné ou situation inhabituelle";
 
-    // Mappage des IDs
     const LINE_MAP = {
         'C01742': 'RER A', 'C01743': 'RER B', 'C01744': 'RER C', 'C01745': 'RER D', 'C01746': 'RER E',
         'C01371': 'M1', 'C01372': 'M2', 'C01373': 'M3', 'C01374': 'M4', 'C01375': 'M5', 'C01376': 'M6',
@@ -179,7 +203,7 @@
 
     let currentTrainsData = [];
     let isAnimating = false;
-    let displayQueue = [{text: DEFAULT_MSG, type: 'default'}];
+    let displayQueue = [{text: DEFAULT_MSG, type: 'default', line: null}];
     let queueIndex = 0;
 
     function updateClock() {
@@ -190,10 +214,9 @@
         const debugNode = document.getElementById('debug-traffic');
         const lineIds = Object.keys(LINE_MAP);
         
-        let newQueue = [{text: DEFAULT_MSG, type: 'default'}];
+        let newQueue = [{text: DEFAULT_MSG, type: 'default', line: null}];
         let successCount = 0;
 
-        // Requêtes séquentielles pour que les lignes valides passent même si une ligne renvoie 400
         for (const id of lineIds) {
             const url = `https://prim.iledefrance-mobilites.fr/marketplace/general-message?LineRef=STIF:Line::${id}:`;
             const proxy = `https://corsproxy.io/?${encodeURIComponent(url)}`;
@@ -201,7 +224,6 @@
             try {
                 const response = await fetch(proxy, { headers: { 'apikey': API_KEY, 'Accept': 'application/json' } });
                 
-                // Si la réponse est OK, on traite. Sinon (ex: HTTP 400), on passe simplement à la ligne suivante
                 if (response.ok) {
                     successCount++;
                     const data = await response.json();
@@ -220,18 +242,15 @@
 
                             if (isRERA || isIncident) {
                                 let type = isWork ? 'works' : 'incident';
-                                const formattedText = `[${LINE_MAP[id]}] ${text}`;
-                                newQueue.push({text: formattedText, type: type});
+                                // On passe l'identifiant de ligne (ex: "RER A" ou "M1") au lieu de formater le texte
+                                newQueue.push({text: text, type: type, line: LINE_MAP[id]});
                             }
                         }
                     });
                 }
-            } catch (e) {
-                // Ignore les échecs de connexion isolés pour ne pas bloquer la boucle
-            }
+            } catch (e) { }
         }
 
-        // Si au moins une ligne a fonctionné, on valide
         if (successCount > 0) {
             displayQueue = Array.from(new Set(newQueue.map(a => JSON.stringify(a)))).map(a => JSON.parse(a));
             debugNode.innerHTML = `<span class="api-ok">API TRAFFIC OK (${displayQueue.length-1} alertes)</span>`;
@@ -253,8 +272,25 @@
             if (queueIndex >= displayQueue.length) queueIndex = 0;
             const current = displayQueue[queueIndex];
             
-            txtNode.innerHTML = current.text.replace(/(\d{1,2}h\d{2}|\d{1,2}:\d{2})/g, '<span class="time-box">$1</span>');
+            // Formatage des heures dans le texte
+            let formattedText = current.text.replace(/(\d{1,2}h\d{2}|\d{1,2}:\d{2})/g, '<span class="time-box">$1</span>');
 
+            // --- NOUVEAUTÉ : Ajout du logo de la ligne ---
+            if (current.line && current.type !== 'default') {
+                const isRer = current.line.startsWith('RER');
+                // Extrait juste la lettre ou le chiffre (A, B, 1, 14...)
+                const shortName = current.line.replace('RER ', '').replace('M', ''); 
+                const shapeClass = isRer ? 'icon-rer' : 'icon-m';
+                // Construit la classe couleur (ex: bg-rer-a, bg-m-14)
+                const colorClass = `bg-${current.line.replace(' ', '-').toLowerCase()}`; 
+                
+                // Insère le badge devant le texte
+                formattedText = `<span class="line-badge ${shapeClass} ${colorClass}">${shortName}</span><span>${formattedText}</span>`;
+            }
+
+            txtNode.innerHTML = formattedText;
+
+            // Gestion de l'icône de gauche (Info, Incident, Travaux)
             iconStd.style.display = 'none';
             iconInc.style.display = 'none';
             iconWorks.style.display = 'none';
@@ -353,16 +389,10 @@
 
     setInterval(updateClock, 1000);
     updateClock();
-    
-    // Passages récupérés toutes les 20 secondes
     fetchSchedules();
     setInterval(fetchSchedules, 20000);
-    
-    // Info trafic récupérée toutes les 4 minutes (240000 ms) pour protéger le quota API
     fetchGlobalTraffic();
     setInterval(fetchGlobalTraffic, 240000); 
-    
-    // Défilement de l'écran toutes les 10 secondes
     setInterval(rotateMessage, 10000);
 </script>
 </body>

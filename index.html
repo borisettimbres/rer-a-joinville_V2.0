@@ -169,7 +169,7 @@
     const MONITORING_REF = 'STIF:StopArea:SP:70640:'; 
     const DEFAULT_MSG = "Attentifs, ensemble • Ne pas se séparer de ses effets personnels • Signaler tout objet abandonné ou situation inhabituelle";
 
-    // Mappage des IDs de lignes pour identification
+    // Mappage des IDs
     const LINE_MAP = {
         'C01742': 'RER A', 'C01743': 'RER B', 'C01744': 'RER C', 'C01745': 'RER D', 'C01746': 'RER E',
         'C01371': 'M1', 'C01372': 'M2', 'C01373': 'M3', 'C01374': 'M4', 'C01375': 'M5', 'C01376': 'M6',
@@ -188,40 +188,27 @@
 
     async function fetchGlobalTraffic() {
         const debugNode = document.getElementById('debug-traffic');
+        const lineIds = Object.keys(LINE_MAP);
         
-        // On récupère TOUT le réseau sans utiliser de paramètres (pour éviter le bug du Swagger)
-        const url = `https://prim.iledefrance-mobilites.fr/marketplace/general-message`;
-        const proxy = `https://corsproxy.io/?${encodeURIComponent(url)}`;
-        
-        try {
-            const response = await fetch(proxy, { 
-                headers: { 
-                    'apikey': API_KEY, // Correction de la casse selon le Swagger
-                    'Accept': 'application/json' 
-                } 
-            });
+        let newQueue = [{text: DEFAULT_MSG, type: 'default'}];
+        let successCount = 0;
+
+        // Requêtes séquentielles pour que les lignes valides passent même si une ligne renvoie 400
+        for (const id of lineIds) {
+            const url = `https://prim.iledefrance-mobilites.fr/marketplace/general-message?LineRef=STIF:Line::${id}:`;
+            const proxy = `https://corsproxy.io/?${encodeURIComponent(url)}`;
             
-            if (!response.ok) {
-                throw new Error(`HTTP ${response.status}`);
-            }
-            
-            const data = await response.json();
-            const messages = data.Siri?.ServiceDelivery?.GeneralMessageDelivery?.[0]?.InfoMessage || [];
-            
-            let newQueue = [{text: DEFAULT_MSG, type: 'default'}];
-            
-            messages.forEach(m => {
-                const contentLineRefs = m.Content?.LineRef || [];
-                const channel = m.InfoChannelRef?.value; 
+            try {
+                const response = await fetch(proxy, { headers: { 'apikey': API_KEY, 'Accept': 'application/json' } });
                 
-                contentLineRefs.forEach(lRef => {
-                    // On extrait l'ID de la ligne (ex: C01742)
-                    const idMatch = lRef.value.match(/C\d{5}/);
-                    if (!idMatch) return;
-                    const id = idMatch[0];
-                    const lineName = LINE_MAP[id];
+                // Si la réponse est OK, on traite. Sinon (ex: HTTP 400), on passe simplement à la ligne suivante
+                if (response.ok) {
+                    successCount++;
+                    const data = await response.json();
+                    const messages = data.Siri?.ServiceDelivery?.GeneralMessageDelivery?.[0]?.InfoMessage || [];
                     
-                    if (lineName) {
+                    messages.forEach(m => {
+                        const channel = m.InfoChannelRef?.value; 
                         const msgs = m.Content?.Message || [];
                         const short = msgs.find(msg => msg.MessageType === "SHORT_MESSAGE");
                         let text = short ? short.MessageText.value : (msgs[0]?.MessageText?.value || "");
@@ -231,23 +218,25 @@
                             const isIncident = (channel === "Perturbation");
                             const isWork = (channel === "PlannedWork");
 
-                            // Filtre métier : TOUT pour le RER A, SEULEMENT les incidents pour les autres
                             if (isRERA || isIncident) {
                                 let type = isWork ? 'works' : 'incident';
-                                const formattedText = `[${lineName}] ${text}`;
+                                const formattedText = `[${LINE_MAP[id]}] ${text}`;
                                 newQueue.push({text: formattedText, type: type});
                             }
                         }
-                    }
-                });
-            });
+                    });
+                }
+            } catch (e) {
+                // Ignore les échecs de connexion isolés pour ne pas bloquer la boucle
+            }
+        }
 
-            // Dédoublonnage au cas où plusieurs lignes partagent le même texte
+        // Si au moins une ligne a fonctionné, on valide
+        if (successCount > 0) {
             displayQueue = Array.from(new Set(newQueue.map(a => JSON.stringify(a)))).map(a => JSON.parse(a));
             debugNode.innerHTML = `<span class="api-ok">API TRAFFIC OK (${displayQueue.length-1} alertes)</span>`;
-            
-        } catch (e) {
-            debugNode.innerHTML = `<span class="api-ko">API TRAFFIC : ERREUR (${e.message})</span>`;
+        } else {
+            debugNode.innerHTML = `<span class="api-ko">API TRAFFIC : ERREUR RÉSEAU</span>`;
         }
     }
 
@@ -287,7 +276,7 @@
         if (isAnimating) return;
         const debug = document.getElementById('debug-schedules');
         const url = `https://prim.iledefrance-mobilites.fr/marketplace/stop-monitoring?MonitoringRef=${MONITORING_REF}`;
-        const proxy = `https://corsproxy.io/?${encodeURIComponent(url)}`; // Remise en place du proxy pour le SIEL
+        const proxy = `https://corsproxy.io/?${encodeURIComponent(url)}`;
         
         try {
             const response = await fetch(proxy, { headers: { 'apikey': API_KEY, 'Accept': 'application/json' } });
@@ -297,7 +286,7 @@
             processUpdate(visits);
             debug.innerHTML = `> SIEL OK - ${new Date().toLocaleTimeString()}`;
         } catch (e) { 
-            debug.innerHTML = `<span class="api-ko">> SIEL HS (${e.message})</span>`; 
+            debug.innerHTML = `<span class="api-ko">> SIEL HS</span>`; 
         }
     }
 
@@ -364,10 +353,16 @@
 
     setInterval(updateClock, 1000);
     updateClock();
+    
+    // Passages récupérés toutes les 20 secondes
     fetchSchedules();
     setInterval(fetchSchedules, 20000);
+    
+    // Info trafic récupérée toutes les 4 minutes (240000 ms) pour protéger le quota API
     fetchGlobalTraffic();
-    setInterval(fetchGlobalTraffic, 120000); 
+    setInterval(fetchGlobalTraffic, 240000); 
+    
+    // Défilement de l'écran toutes les 10 secondes
     setInterval(rotateMessage, 10000);
 </script>
 </body>

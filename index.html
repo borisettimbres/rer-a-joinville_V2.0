@@ -97,7 +97,6 @@
         .info-icon-container { margin-right: 35px; flex-shrink: 0; display: flex; align-items: center; }
         .icon-info-blue { width: 45px; height: 45px; background: white; border: 3px solid #1a3144; border-radius: 6px; display: flex; align-items: center; justify-content: center; font-size: 32px; font-weight: bold; color: #1a3144; }
 
-        /* Fallbacks si aucune ligne n'est définie */
         .logo-incident { position: relative; display: none; }
         .logo-incident .logo-box { background: #c0333a; color: white; width: 45px; height: 45px; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 24px; font-weight: 900; }
         .logo-status-x { position: absolute; bottom: -5px; right: -8px; background: #000; color: white; width: 20px; height: 20px; border-radius: 4px; border: 2px solid white; display: flex; align-items: center; justify-content: center; font-size: 14px; font-weight: bold; }
@@ -278,12 +277,20 @@
                         let text = short ? short.MessageText.value : (msgs[0]?.MessageText?.value || "");
 
                         if (text) {
+                            // On passe le texte en minuscules pour faciliter la recherche
+                            const lowerText = text.toLowerCase();
+                            
                             const isRERA = (id === 'C01742');
-                            const isIncident = (channel === "Perturbation");
-                            const isWork = (channel === "PlannedWork");
+                            const isIncidentAPI = (channel === "Perturbation");
+                            const isWorkAPI = (channel === "PlannedWork");
+                            
+                            // On détecte intelligemment les travaux même si l'API dit "Perturbation"
+                            const isTextWorks = lowerText.includes("travaux") || lowerText.includes("tvx");
 
-                            if (isRERA || isIncident) {
-                                let type = isWork ? 'works' : 'incident';
+                            // On affiche si c'est la ligne du RER A OU s'il y a une perturbation/travaux sur une autre ligne
+                            if (isRERA || isIncidentAPI || isWorkAPI || isTextWorks) {
+                                // Si c'est des travaux (API ou texte), c'est un cône. Sinon, un incident.
+                                let type = (isWorkAPI || isTextWorks) ? 'works' : 'incident';
                                 newQueue.push({text: text, type: type, line: LINE_MAP[id]});
                             }
                         }

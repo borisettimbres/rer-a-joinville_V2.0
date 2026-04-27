@@ -10,533 +10,238 @@
             --dark: #000000;
             --yellow: #fbc02d; 
             --bg-page: #f5f5f5;
-            --grey-border: #666;
-            --grey-bg: #eee;
-            --info-bg: #d0dce4;
-            --info-text: #1a3144;
             --ok-color: #00ff00;
             --ko-color: #ff4444;
             --loading-color: #F59E0B;
+            --info-bg: #d0dce4;
+            --info-text: #1a3144;
         }
         body { background: var(--bg-page); font-family: 'Cabin', sans-serif; margin: 0; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
         
         header { background: white; padding: 12px 25px; display: flex; justify-content: space-between; align-items: center; border-bottom: 8px solid var(--red-a); z-index: 10; }
-        
         .header-left { display: flex; align-items: center; }
         .logos-container { display: flex; gap: 8px; align-items: center; }
-        
-        .logo-rer {
-            background: white; border: 2.5px solid var(--dark); border-radius: 8px;
-            width: 48px; height: 48px; display: flex; align-items: center; justify-content: center;
-            font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
-            font-size: 16px; font-weight: bold; color: var(--dark); box-sizing: border-box;
-        }
-        
-        /* Conteneur pour le logo officiel de l'en-tête injecté via API */
+        .logo-rer-pill { background: white; border: 2.5px solid var(--dark); border-radius: 8px; width: 48px; height: 48px; display: flex; align-items: center; justify-content: center; font-size: 16px; font-weight: bold; color: var(--dark); }
         .header-line-logo { width: 48px; height: 48px; }
-        
-        .station-info { margin-left: 15px; }
-        .station-name { font-size: 26px; font-weight: bold; line-height: 1; letter-spacing: -0.5px; color: var(--dark); }
-        .direction-info { font-size: 16px; color: var(--red-a); margin-top: 4px; font-weight: bold; letter-spacing: -0.2px; }
-        
+
+        .station-name { font-size: 26px; font-weight: bold; color: var(--dark); margin-left: 15px; }
         .clock { background: var(--dark); color: var(--yellow); padding: 10px 22px; border-radius: 8px; font-size: 28px; font-weight: bold; }
         
-        .board { flex-grow: 1; padding: 0 20px; overflow: hidden; display: flex; flex-direction: column; }
-        
-        .row { 
-            display: grid; 
-            grid-template-columns: 100px 1fr 220px 100px; 
-            align-items: center; 
-            padding: 15px 0; 
-            border-bottom: 2px solid #ddd;
-            background: var(--bg-page);
-            transition: transform 0.6s ease-in, opacity 0.5s ease-in, height 0.6s ease, padding 0.6s ease;
-            height: 70px;
-            overflow: hidden;
-        }
-        .row.exit-left { transform: translateX(-120%); opacity: 0; height: 0; padding-top: 0; padding-bottom: 0; border-bottom: none; }
-        @keyframes slideInFromBottom {
-            0% { transform: translateY(50px); opacity: 0; }
-            100% { transform: translateY(0); opacity: 1; }
-        }
-        .row.new-row { animation: slideInFromBottom 0.5s ease-out forwards; }
-
+        .board { flex-grow: 1; padding: 0 20px; display: flex; flex-direction: column; }
+        .row { display: grid; grid-template-columns: 100px 1fr 220px 100px; align-items: center; padding: 15px 0; border-bottom: 2px solid #ddd; height: 70px; }
         .mission { background: #ddd; padding: 6px; border-radius: 4px; text-align: center; font-weight: bold; font-family: monospace; font-size: 16px; }
         .dest { font-size: 28px; font-weight: 700; padding-left: 15px; color: var(--dark); }
+        .time { background: var(--dark); color: var(--yellow); border-radius: 8px; text-align: center; width: 190px; height: 60px; display: flex; justify-content: center; align-items: center; font-size: 32px; font-weight: bold; }
+        .unit { font-size: 14px; margin-left: 4px; text-transform: lowercase; }
+
+        .info-trafic { background: var(--info-bg); height: 110px; display: flex; align-items: center; padding: 0 30px; border-top: 2px solid #b8c5ce; }
+        .info-icon-container { margin-right: 35px; flex-shrink: 0; }
+        .icon-info-blue { width: 45px; height: 45px; background: white; border: 3px solid #1a3144; border-radius: 6px; display: flex; align-items: center; justify-content: center; font-size: 32px; font-weight: bold; color: #1a3144; }
         
-        .time { background: var(--dark); color: var(--yellow); border-radius: 8px; text-align: center; width: 190px; height: 60px; display: flex; justify-content: center; align-items: center; justify-self: center; overflow: hidden; }
-        .time-wrapper { display: flex; flex-direction: column; align-items: center; justify-content: center; width: 100%; }
-        
+        /* Conteneur pour afficher l'icône extraite du sprite */
+        .line-icon-display { width: 45px; height: 45px; display: flex; align-items: center; justify-content: center; position: relative; }
+        .line-icon-display svg { width: 100%; height: 100%; }
+        .badge-status { position: absolute; bottom: -5px; right: -5px; width: 22px; height: 22px; border-radius: 5px; border: 2px solid var(--info-bg); }
+
+        .info-text { font-size: 24px; font-weight: 700; color: var(--info-text); flex-grow: 1; }
         .blinking { animation: blinker 1.2s linear infinite; }
         @keyframes blinker { 50% { opacity: 0; } }
 
-        .time .val, .time .full-text { font-size: 32px; font-weight: bold; line-height: 0.85; text-transform: uppercase; }
-        .time .unit { font-size: 14px; margin-top: 2px; text-transform: lowercase; font-weight: bold; }
-
-        .platform { display: flex; justify-content: center; border-left: 1px solid #ccc; padding-left: 10px; }
-        .platform-box { background: var(--grey-bg); border: 2.5px solid var(--grey-border); border-radius: 8px; width: 60px; height: 60px; display: flex; flex-direction: column; align-items: center; justify-content: center; box-sizing: border-box; color: var(--dark); }
-        .platform-text { font-size: 10px; text-transform: uppercase; font-weight: bold; }
-        .platform-num { font-size: 24px; font-weight: 900; }
-
-        /* --- ENCART TRAFIC --- */
-        .info-trafic {
-            background: var(--info-bg);
-            height: 110px;
-            display: flex;
-            align-items: center;
-            padding: 0 30px;
-            position: relative;
-            z-index: 5;
-            border-top: 2px solid #b8c5ce;
-            overflow: hidden;
-        }
-
-        .info-icon-container { margin-right: 35px; flex-shrink: 0; display: flex; align-items: center; }
-        .icon-info-blue { width: 45px; height: 45px; background: white; border: 3px solid #1a3144; border-radius: 6px; display: flex; align-items: center; justify-content: center; font-size: 32px; font-weight: bold; color: #1a3144; }
-
-        /* Fallbacks Globaux (Alertes qui ne concernent pas une ligne précise) */
-        .icon-global { display: none; width: 45px; height: 45px; flex-shrink: 0; }
-        .icon-global svg { width: 100%; height: 100%; display: block; }
-
-        /* --- CONTENEUR DYNAMIQUE POUR BADGE LIGNE --- */
-        .dynamic-wrapper {
-            position: relative;
-            display: none; 
-            align-items: center;
-            justify-content: center;
-        }
-
-        /* --- ICONS LIGNES DYNAMIQUES --- */
-        .line-icon-main {
-            display: flex; align-items: center; justify-content: center;
-            font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
-            font-weight: bold; 
-            width: 45px; height: 45px; flex-shrink: 0; box-sizing: border-box;
-        }
-        /* Pour les CSS Fallbacks dynamiques */
-        .line-icon-main.icon-rer { border-radius: 10px; font-size: 28px; } 
-        .line-icon-main.icon-m { border-radius: 50%; font-size: 26px; }
-
-        /* Pour forcer les SVG API à prendre la bonne taille */
-        .line-icon-main svg, .header-line-logo svg {
-            width: 100% !important; height: 100% !important; display: block;
-        }
-
-        /* --- BADGE INCIDENT / TRAVAUX --- */
-        .badge-dynamic {
-            position: absolute;
-            bottom: -6px;
-            right: -8px;
-            width: 24px;
-            height: 24px;
-            display: none;
-            border: 3px solid var(--info-bg);
-            border-radius: 8px;
-            background-color: var(--info-bg); 
-            object-fit: contain;
-            box-sizing: content-box; 
-        }
-
-        /* Codes couleurs pour les Fallbacks Dynamiques */
-        .bg-rer-a { background-color: #CE283C; color: white; }
-        .bg-rer-b { background-color: #5780B8; color: white; }
-        .bg-rer-c { background-color: #F2C94C; color: black; }
-        .bg-rer-d { background-color: #1A865B; color: white; }
-        .bg-rer-e { background-color: #9A4F8A; color: white; }
-
-        .bg-m1 { background-color: #F5C946; color: black; }
-        .bg-m2 { background-color: #2163A0; color: white; }
-        .bg-m3 { background-color: #92953F; color: white; }
-        .bg-m4 { background-color: #9E4A86; color: white; }
-        .bg-m5 { background-color: #D97E4A; color: black; }
-        .bg-m6 { background-color: #75B581; color: black; }
-        .bg-m7 { background-color: #E695A6; color: black; }
-        .bg-m8 { background-color: #B496BD; color: black; }
-        .bg-m9 { background-color: #B9BA44; color: black; }
-        .bg-m10 { background-color: #D4A849; color: black; }
-        .bg-m11 { background-color: #7D5A37; color: white; }
-        .bg-m12 { background-color: #14845F; color: white; }
-        .bg-m13 { background-color: #8AC7CB; color: black; }
-        .bg-m14 { background-color: #48286C; color: white; }
-
-        .info-scroll-container { flex-grow: 1; height: 100%; display: flex; align-items: center; overflow: hidden; position: relative; }
-        
-        .info-text { 
-            font-size: 24px; 
-            font-weight: 700; 
-            color: var(--info-text); 
-            width: 100%; 
-            display: block; 
-            line-height: 1.35; 
-            transition: transform 0.5s ease-in-out, opacity 0.5s; 
-            opacity: 1; 
-            transform: translateY(0); 
-        }
-        
-        .slide-up-exit { transform: translateY(-100%); opacity: 0; }
-        .slide-up-enter { transform: translateY(100%); opacity: 0; }
-        
-        .time-box { 
-            background: #333; 
-            color: white; 
-            padding: 2px 6px; 
-            border-radius: 4px; 
-            font-family: monospace;
-            display: inline-block;
-            white-space: nowrap;
-            margin: 0 4px;
-            vertical-align: baseline;
-        }
-
-        footer { 
-            background: #333; color: #aaa; padding: 10px 20px; 
-            font-family: monospace; font-size: 11px; z-index: 10; 
-            display: flex; justify-content: space-between; align-items: center;
-        }
-        .footer-apis { display: flex; gap: 20px; }
+        footer { background: #333; color: #aaa; padding: 10px 20px; font-family: monospace; font-size: 11px; display: flex; justify-content: space-between; }
         .api-ok { color: var(--ok-color); font-weight: bold; }
         .api-ko { color: var(--ko-color); font-weight: bold; }
         .api-loading { color: var(--loading-color); font-weight: bold; }
+        
+        /* Cacher le sprite SVG global */
+        #svg-sprite-container { display: none; }
     </style>
 </head>
 <body>
 
+<div id="svg-sprite-container"></div>
+
 <header>
     <div class="header-left">
         <div class="logos-container">
-            <div class="logo-rer">RER</div>
-            <div id="header-logo-a" class="header-line-logo">
-                <div style="background:var(--red-a);width:100%;height:100%;border-radius:10px;color:white;display:flex;align-items:center;justify-content:center;font-size:34px;font-weight:bold;font-family:Arial,sans-serif;">A</div>
-            </div>
+            <div class="logo-rer-pill">RER</div>
+            <div id="header-logo-rer-a" class="header-line-logo"></div>
         </div>
-        <div class="station-info">
-            <div class="station-name">JOINVILLE-LE-PONT</div>
-            <div class="direction-info">Paris · St-Germain-en-Laye · Poissy · Cergy</div>
-        </div>
+        <div class="station-name">JOINVILLE-LE-PONT</div>
     </div>
     <div class="clock" id="clock">--:--</div>
 </header>
 
 <div class="board" id="board"></div>
 
-<div class="info-trafic" id="info-trafic-bar">
-    <div class="info-icon-container">
+<div class="info-trafic">
+    <div class="info-icon-container" id="info-icon-box">
         <div id="icon-standard" class="icon-info-blue">i</div>
-        
-        <div id="icon-incident-global" class="icon-global">
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><rect x="5" y="5" width="90" height="90" rx="20" fill="#F2C94C" stroke="#1A1A1A" stroke-width="10"/><path d="M42 25 h16 l-2 35 h-12 z" fill="#1A1A1A"/><circle cx="50" cy="75" r="8" fill="#1A1A1A"/></svg>
-        </div>
-        <div id="icon-works-global" class="icon-global">
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><rect x="5" y="5" width="90" height="90" rx="20" fill="#CA553C" stroke="#1A1A1A" stroke-width="10"/><path d="M44 34 L56 34 L53 22 C52 18 48 18 47 22 Z" fill="white"/><polygon points="39,55 61,55 57,40 43,40" fill="white"/><path d="M34 61 L66 61 L68 68 C76 68 76 80 66 80 L34 80 C24 80 24 68 32 68 Z" fill="white"/></svg>
-        </div>
-        
-        <div id="dynamic-wrapper" class="dynamic-wrapper">
-            <div id="icon-dynamic" class="line-icon-main"></div>
-            <img id="badge-dynamic" class="badge-dynamic" src="" alt="status">
-        </div>
     </div>
-    <div class="info-scroll-container">
-        <div class="info-text" id="traffic-message">Connexion au réseau PRIM...</div>
-    </div>
+    <div class="info-text" id="traffic-message">Chargement du sprite des logos...</div>
 </div>
 
 <footer>
-    <div id="debug-schedules">> SIEL : Initialisation...</div>
-    <div class="footer-apis">
-        <div id="debug-traffic"><span class="api-loading">API Info Trafic : En attente...</span></div>
-        <div id="debug-indices"><span class="api-loading">API Indices : En attente...</span></div>
+    <div id="debug-schedules">> SIEL : Attente...</div>
+    <div style="display: flex; gap: 20px;">
+        <div id="debug-traffic">Info Trafic : --</div>
+        <div id="debug-indices">Génération des indices de lignes : --</div>
     </div>
 </footer>
 
 <script>
-    const API_KEY = '2pz4kMqzVx2zneQWOTnOrqM6muPE1XVO';
-    const MONITORING_REF = 'STIF:StopArea:SP:70640:'; 
-    const DEFAULT_MSG = "Attentifs, ensemble • Ne pas se séparer de ses effets personnels • Signaler tout objet abandonné ou situation inhabituelle";
-
+    const API_KEY_MAIN = '2pz4kMqzVx2zneQWOTnOrqM6muPE1XVO';
+    const API_KEY_LOGOS = 'F2uOuFqwSrN1o5t1yAnV4XDDVUOh3Lso'; // Clé à 10 appels/jour
+    
     const LINE_MAP = {
-        'C01742': 'RER A', 'C01743': 'RER B', 'C01744': 'RER C', 'C01745': 'RER D', 'C01746': 'RER E',
-        'C01371': 'M1', 'C01372': 'M2', 'C01373': 'M3', 'C01374': 'M4', 'C01375': 'M5', 'C01376': 'M6',
-        'C01377': 'M7', 'C01378': 'M8', 'C01379': 'M9', 'C01380': 'M10', 'C01381': 'M11', 'C01382': 'M12',
-        'C01383': 'M13', 'C01384': 'M14'
+        'C01742': 'A', 'C01743': 'B', 'C01744': 'C', 'C01745': 'D', 'C01746': 'E',
+        'C01371': '1', 'C01372': '2', 'C01373': '3', 'C01374': '4', 'C01375': '5', 'C01376': '6',
+        'C01377': '7', 'C01378': '8', 'C01379': '9', 'C01380': '10', 'C01381': '11', 'C01382': '12',
+        'C01383': '13', 'C01384': '14'
     };
 
-    let currentTrainsData = [];
-    let isAnimating = false;
-    let displayQueue = [{text: DEFAULT_MSG, type: 'default', line: null, lineId: null}];
+    let displayQueue = [{text: "Attentifs, ensemble • Signalez tout objet abandonné", type: 'default'}];
     let queueIndex = 0;
-    
-    const iconCache = {};
+    const proxy = (url) => `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`;
 
-    // Fonction de pause pour éviter le blocage de l'API (Erreur 429)
-    const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
+    // --- LOGIQUE SPRITE & STOCKAGE ---
 
-    function updateClock() {
-        document.getElementById('clock').innerText = new Date().toLocaleTimeString('fr-FR', {hour: '2-digit', minute:'2-digit'});
+    async function initLogosSprite() {
+        const debug = document.getElementById('debug-indices');
+        const container = document.getElementById('svg-sprite-container');
+        
+        // 1. Essayer de charger depuis le stockage local
+        const cachedSprite = localStorage.getItem('prim_sprite_logos');
+        if (cachedSprite) {
+            container.innerHTML = cachedSprite;
+            debug.innerHTML = `<span class="api-ok">OK (Cache)</span>`;
+            updateHeaderLogo();
+            return;
+        }
+
+        // 2. Sinon, faire l'unique appel API de la journée
+        debug.innerHTML = `<span class="api-loading">Chargement Sprite...</span>`;
+        const lineIds = Object.keys(LINE_MAP).join(',');
+        const url = `https://prim.iledefrance-mobilites.fr/marketplace/ilico/getIcon/sprite?lineIds=${lineIds}&format=sprite`;
+
+        try {
+            const response = await fetch(proxy(url), { headers: { 'apikey': API_KEY_LOGOS } });
+            if (response.ok) {
+                const svgSprite = await response.text();
+                // Stockage permanent
+                localStorage.setItem('prim_sprite_logos', svgSprite);
+                container.innerHTML = svgSprite;
+                debug.innerHTML = `<span class="api-ok">OK (API)</span>`;
+                updateHeaderLogo();
+            } else {
+                debug.innerHTML = `<span class="api-ko">Erreur ${response.status}</span>`;
+            }
+        } catch (e) {
+            debug.innerHTML = `<span class="api-ko">Erreur Réseau</span>`;
+        }
     }
 
-    async function fetchLineIcon(lineId) {
-        if (!lineId || iconCache[lineId]) return; 
-        
-        const url = `https://prim.iledefrance-mobilites.fr/marketplace/ilico/getIcon/${lineId}`;
-        const proxy = `https://corsproxy.io/?${encodeURIComponent(url)}`;
-        const debugIndices = document.getElementById('debug-indices');
+    // Fonction pour générer le code HTML d'un logo à partir du sprite
+    function getLogoHTML(lineId) {
+        // L'API Sprite utilise des ID au format "STIF_Line__ID_" ou proche. 
+        // On utilise la balise <use> pour cloner l'élément du sprite.
+        return `<svg viewBox="0 0 100 100" class="line-icon-svg">
+                    <use xlink:href="#${lineId}"></use>
+                </svg>`;
+    }
+
+    function updateHeaderLogo() {
+        document.getElementById('header-logo-rer-a').innerHTML = getLogoHTML('C01742');
+    }
+
+    // --- TRAFIC & HORAIRES ---
+
+    async function fetchTraffic() {
+        const debug = document.getElementById('debug-traffic');
+        let newQueue = [{text: "Attentifs, ensemble • Signalez tout objet abandonné", type: 'default'}];
         
         try {
-            const response = await fetch(proxy, { headers: { 'apikey': API_KEY, 'Accept': 'image/svg+xml' } });
-            if (response.ok) {
-                let svgContent = await response.text();
-                iconCache[lineId] = svgContent;
-                debugIndices.innerHTML = `<span class="api-ok">API Indices : OK</span>`;
-            } else {
-                debugIndices.innerHTML = `<span class="api-ko">API Indices : ERREUR ${response.status}</span>`;
-            }
-        } catch (e) { 
-            console.error('Erreur lors du téléchargement de l\'icône :', e);
-            debugIndices.innerHTML = `<span class="api-ko">API Indices : ERREUR RÉSEAU</span>`;
-        }
-    }
-
-    async function initMainLogo() {
-        await fetchLineIcon('C01742'); // ID du RER A
-        if (iconCache['C01742']) {
-            document.getElementById('header-logo-a').innerHTML = iconCache['C01742'];
-        }
-    }
-
-    async function fetchGlobalTraffic() {
-        const debugNode = document.getElementById('debug-traffic');
-        const lineIds = Object.keys(LINE_MAP);
-        
-        let newQueue = [{text: DEFAULT_MSG, type: 'default', line: null, lineId: null}];
-        let successCount = 0;
-
-        for (const id of lineIds) {
-            const url = `https://prim.iledefrance-mobilites.fr/marketplace/general-message?LineRef=STIF:Line::${id}:`;
-            const proxy = `https://corsproxy.io/?${encodeURIComponent(url)}`;
-            
-            try {
-                const response = await fetch(proxy, { headers: { 'apikey': API_KEY, 'Accept': 'application/json' } });
-                
-                if (response.ok) {
-                    successCount++;
-                    const data = await response.json();
+            // Pour l'exemple, on boucle sur quelques lignes pour ne pas saturer
+            const linesToTrack = ['C01742', 'C01371', 'C01374', 'C01384']; 
+            for (const id of linesToTrack) {
+                const url = `https://prim.iledefrance-mobilites.fr/marketplace/general-message?LineRef=STIF:Line::${id}:`;
+                const res = await fetch(proxy(url), { headers: { 'apikey': API_KEY_MAIN } });
+                if (res.ok) {
+                    const data = await res.json();
                     const messages = data.Siri?.ServiceDelivery?.GeneralMessageDelivery?.[0]?.InfoMessage || [];
-                    
                     messages.forEach(m => {
-                        const channel = m.InfoChannelRef?.value; 
-                        const msgs = m.Content?.Message || [];
-                        const short = msgs.find(msg => msg.MessageType === "SHORT_MESSAGE");
-                        let text = short ? short.MessageText.value : (msgs[0]?.MessageText?.value || "");
-
-                        if (text) {
-                            const lowerText = text.toLowerCase();
-                            const isRERA = (id === 'C01742');
-                            const isIncidentAPI = (channel === "Perturbation");
-                            const isWorkAPI = (channel === "PlannedWork");
-                            const isTextWorks = lowerText.includes("travaux") || lowerText.includes("tvx");
-
-                            if (isRERA || isIncidentAPI || isWorkAPI || isTextWorks) {
-                                let type = (isWorkAPI || isTextWorks) ? 'works' : 'incident';
-                                newQueue.push({text: text, type: type, line: LINE_MAP[id], lineId: id});
-                            }
-                        }
+                        const text = m.Content?.Message[0]?.MessageText?.value;
+                        if (text) newQueue.push({text, type: 'incident', lineId: id});
                     });
-                } else if (response.status === 429) {
-                    console.warn(`Erreur 429 sur la ligne ${id} - On ralentit.`);
-                }
-            } catch (e) { 
-                console.error(e);
-            }
-            
-            // PAUSE DE 300ms POUR ÉVITER L'ERREUR 429
-            await sleep(300); 
-        }
-
-        if (successCount > 0) {
-            displayQueue = Array.from(new Set(newQueue.map(a => JSON.stringify(a)))).map(a => JSON.parse(a));
-            debugNode.innerHTML = `<span class="api-ok">API Info Trafic : OK (${displayQueue.length-1} alertes)</span>`;
-            
-            // Lancement du téléchargement des icônes de façon séquentielle
-            for (const item of displayQueue) {
-                if (item.lineId) {
-                    await fetchLineIcon(item.lineId);
-                    await sleep(200); // Petite pause ici aussi pour les images
                 }
             }
-        } else {
-            debugNode.innerHTML = `<span class="api-ko">API Info Trafic : ERREUR RÉSEAU</span>`;
-        }
+            displayQueue = newQueue;
+            debug.innerHTML = `<span class="api-ok">OK</span>`;
+        } catch (e) { debug.innerHTML = `<span class="api-ko">HS</span>`; }
     }
 
     function rotateMessage() {
-        const txtNode = document.getElementById('traffic-message');
-        const iconStd = document.getElementById('icon-standard');
-        const iconIncGlob = document.getElementById('icon-incident-global');
-        const iconWorksGlob = document.getElementById('icon-works-global');
+        const txt = document.getElementById('traffic-message');
+        const iconBox = document.getElementById('info-icon-box');
         
-        const wrapperDyn = document.getElementById('dynamic-wrapper');
-        const iconDyn = document.getElementById('icon-dynamic');
-        const badgeDyn = document.getElementById('badge-dynamic');
+        if (queueIndex >= displayQueue.length) queueIndex = 0;
+        const current = displayQueue[queueIndex];
 
-        if (displayQueue.length === 0) return;
-        txtNode.classList.add('slide-up-exit');
+        if (current.type === 'default') {
+            iconBox.innerHTML = `<div class="icon-info-blue">i</div>`;
+        } else {
+            const badgeColor = current.text.toLowerCase().includes('travaux') ? '#CA553C' : '#F2C94C';
+            iconBox.innerHTML = `
+                <div class="line-icon-display">
+                    ${getLogoHTML(current.lineId)}
+                    <div class="badge-status blinking" style="background:${badgeColor}"></div>
+                </div>`;
+        }
 
-        setTimeout(() => {
-            if (queueIndex >= displayQueue.length) queueIndex = 0;
-            const current = displayQueue[queueIndex];
-            
-            let formattedText = current.text.replace(/(\d{1,2}h\d{2}|\d{1,2}:\d{2})/g, '<span class="time-box">$1</span>');
-
-            // Réinitialisation des affichages
-            iconStd.style.display = 'none';
-            iconIncGlob.style.display = 'none';
-            iconWorksGlob.style.display = 'none';
-            wrapperDyn.style.display = 'none';
-            badgeDyn.style.display = 'none';
-            
-            badgeDyn.classList.remove('blinking');
-            iconIncGlob.classList.remove('blinking');
-
-            if (current.type === 'default') {
-                iconStd.style.display = 'flex';
-            } 
-            else if (current.line) { 
-                // Affiche le conteneur principal
-                wrapperDyn.style.display = 'flex';
-                iconDyn.innerHTML = ''; // Nettoyer le fallback texte précédent
-                
-                if (iconCache[current.lineId]) {
-                    // SI LE SVG EST PRET : on l'injecte
-                    iconDyn.innerHTML = iconCache[current.lineId];
-                    iconDyn.className = 'line-icon-main'; 
-                } else {
-                    // SI LE SVG CHARGE ENCORE OU A ÉCHOUÉ : on applique le vrai CSS correspondant
-                    const isRer = current.line.startsWith('RER');
-                    const shortName = current.line.replace('RER ', '').replace('M', ''); 
-                    const shapeClass = isRer ? 'icon-rer' : 'icon-m';
-                    const colorClass = `bg-${current.line.replace(' ', '-').toLowerCase()}`; 
-                    
-                    iconDyn.className = `line-icon-main ${shapeClass} ${colorClass}`;
-                    iconDyn.innerText = shortName;
-                }
-
-                // Application du badge Incident / Travaux
-                if (current.type === 'incident') {
-                    badgeDyn.src = "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect x='5' y='5' width='90' height='90' rx='20' fill='%23F2C94C' stroke='%231A1A1A' stroke-width='10'/><path d='M42 25 h16 l-2 35 h-12 z' fill='%231A1A1A'/><circle cx='50' cy='75' r='8' fill='%231A1A1A'/></svg>";
-                    badgeDyn.style.display = 'block';
-                    badgeDyn.classList.add('blinking'); 
-                } else if (current.type === 'works') {
-                    badgeDyn.src = "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect x='5' y='5' width='90' height='90' rx='20' fill='%23CA553C' stroke='%231A1A1A' stroke-width='10'/><path d='M44 34 L56 34 L53 22 C52 18 48 18 47 22 Z' fill='white'/><polygon points='39,55 61,55 57,40 43,40' fill='white'/><path d='M34 61 L66 61 L68 68 C76 68 76 80 66 80 L34 80 C24 80 24 68 32 68 Z' fill='white'/></svg>";
-                    badgeDyn.style.display = 'block';
-                }
-            } 
-            else {
-                // Alerte globale (ne concerne aucune ligne en particulier)
-                if (current.type === 'incident') {
-                    iconIncGlob.style.display = 'block';
-                    iconIncGlob.classList.add('blinking');
-                }
-                else if (current.type === 'works') iconWorksGlob.style.display = 'block';
-            }
-
-            txtNode.innerHTML = formattedText;
-
-            txtNode.classList.remove('slide-up-exit');
-            txtNode.classList.add('slide-up-enter');
-            txtNode.offsetHeight;
-            txtNode.classList.remove('slide-up-enter');
-
-            queueIndex = (queueIndex + 1) % displayQueue.length;
-        }, 500);
+        txt.innerText = current.text;
+        queueIndex++;
     }
 
     async function fetchSchedules() {
-        if (isAnimating) return;
         const debug = document.getElementById('debug-schedules');
-        const url = `https://prim.iledefrance-mobilites.fr/marketplace/stop-monitoring?MonitoringRef=${MONITORING_REF}`;
-        const proxy = `https://corsproxy.io/?${encodeURIComponent(url)}`;
-        
+        const url = `https://prim.iledefrance-mobilites.fr/marketplace/stop-monitoring?MonitoringRef=STIF:StopArea:SP:70640:`;
         try {
-            const response = await fetch(proxy, { headers: { 'apikey': API_KEY, 'Accept': 'application/json' } });
-            if (!response.ok) throw new Error(`HTTP ${response.status}`);
-            const data = await response.json();
-            const visits = data.Siri?.ServiceDelivery?.StopMonitoringDelivery?.[0]?.MonitoredStopVisit || [];
-            processUpdate(visits);
+            const res = await fetch(proxy(url), { headers: { 'apikey': API_KEY_MAIN } });
+            const data = await res.json();
+            const visits = data.Siri?.ServiceDelivery?.StopMonitoringDelivery[0].MonitoredStopVisit || [];
+            
+            let html = '';
+            visits.slice(0, 6).forEach(v => {
+                const j = v.MonitoredVehicleJourney;
+                const time = new Date(j.MonitoredCall.ExpectedDepartureTime || j.MonitoredCall.AimedDepartureTime);
+                const diff = Math.max(0, Math.round((time - new Date()) / 60000));
+                html += `
+                    <div class="row">
+                        <div class="mission">${j.JourneyNote?.[0]?.value || '---'}</div>
+                        <div class="dest">${j.DestinationName[0].value.replace('GARE DE ', '')}</div>
+                        <div class="time">${diff}<span class="unit">min</span></div>
+                        <div style="font-weight:bold;text-align:center;">${j.MonitoredCall.DeparturePlatformName?.value || ''}</div>
+                    </div>`;
+            });
+            document.getElementById('board').innerHTML = html;
             debug.innerHTML = `> SIEL OK - ${new Date().toLocaleTimeString()}`;
-        } catch (e) { 
-            debug.innerHTML = `<span class="api-ko">> SIEL HS</span>`; 
-        }
+        } catch (e) { debug.innerHTML = `<span class="api-ko">> SIEL HS</span>`; }
     }
 
-    function processUpdate(visits) {
-        const seen = new Set();
-        let newTrains = visits.map(v => v.MonitoredVehicleJourney).filter(j => {
-            const line = j.LineRef?.value || "";
-            if (!line.includes('C01742') && line !== 'A') return false;
-            const uniqueKey = `${j.DestinationName[0].value}_${j.MonitoredCall.AimedDepartureTime}`;
-            if (seen.has(uniqueKey)) return false;
-            seen.add(uniqueKey);
-            const destName = j.DestinationName[0].value.toLowerCase();
-            return !destName.includes('boissy') && !destName.includes('varenne');
-        }).sort((a, b) => new Date(a.MonitoredCall.ExpectedDepartureTime || a.MonitoredCall.AimedDepartureTime) - new Date(b.MonitoredCall.ExpectedDepartureTime || b.MonitoredCall.AimedDepartureTime)).slice(0, 7);
-        
-        if (currentTrainsData.length > 0 && newTrains.length > 0) {
-            if (currentTrainsData[0].FramedVehicleJourneyRef?.DatedVehicleJourneyRef !== newTrains[0].FramedVehicleJourneyRef?.DatedVehicleJourneyRef) {
-                triggerDepartureAnimation(newTrains); return;
-            }
-        }
-        render(newTrains);
-    }
-
-    function triggerDepartureAnimation(newTrains) {
-        const firstRow = document.querySelector('.row');
-        if (firstRow) {
-            isAnimating = true;
-            firstRow.classList.add('exit-left');
-            setTimeout(() => { render(newTrains); isAnimating = false; }, 600);
-        } else { render(newTrains); }
-    }
-
-    function render(trains) {
-        const board = document.getElementById('board');
-        const now = new Date();
-        let html = '';
-        if (trains.length === 0) { board.innerHTML = '<div style="text-align:center;margin-top:100px;color:#999;">Aucun train.</div>'; return; }
-        trains.forEach(j => {
-            const dest = formatDestination(j.DestinationName[0].value);
-            const mission = j.JourneyNote?.[0]?.value || "----";
-            const time = new Date(j.MonitoredCall.ExpectedDepartureTime || j.MonitoredCall.AimedDepartureTime);
-            const diff = Math.round((time - now) / 60000);
-            const isAtStop = j.MonitoredCall.VehicleAtStop === true || j.MonitoredCall.VehicleAtStop === "true";
-            let timeHTML = (isAtStop) ? '<span class="full-text">À quai</span>' : (diff <= 0 ? '<span class="full-text">À l\'approche</span>' : `<span class="val">${diff}</span><span class="unit">min</span>`);
-            let statusClass = (diff <= 0 && !isAtStop) ? 'blinking' : '';
-            const platformData = j.MonitoredCall.DeparturePlatformName;
-            const rawPlatform = (platformData && typeof platformData === 'object') ? platformData.value : platformData;
-            let platformHTML = (rawPlatform && rawPlatform !== "unknown") ? `<div class="platform"><div class="platform-box"><span class="platform-text">Quai</span><span class="platform-num">${rawPlatform}</span></div></div>` : '<div class="platform"></div>';
-            html += `<div class="row"><div class="mission">${mission}</div><div class="dest">${dest}</div><div class="time"><div class="time-wrapper ${statusClass}">${timeHTML}</div></div>${platformHTML}</div>`;
-        });
-        board.innerHTML = html;
-        currentTrainsData = trains;
-    }
-
-    function formatDestination(text) {
-        let clean = text.replace(/GARE DE /gi, '').trim().toLowerCase();
-        if (clean === "cergy le haut") return "Cergy - Le Haut";
-        return clean.split(/([ -])/).map(part => {
-            if ([" ", "-"].includes(part)) return part;
-            if (["de", "la", "le"].includes(part) && clean.indexOf(part) !== 0) return part;
-            return part.charAt(0).toUpperCase() + part.slice(1);
-        }).join('');
-    }
-
-    initMainLogo();
-    setInterval(updateClock, 1000);
-    updateClock();
+    // --- LANCEMENT ---
+    
+    initLogosSprite(); // Appelé une seule fois, utilise le cache.
+    
     fetchSchedules();
-    setInterval(fetchSchedules, 20000);
-    fetchGlobalTraffic();
-    setInterval(fetchGlobalTraffic, 240000); 
+    setInterval(fetchSchedules, 30000);
+
+    fetchTraffic();
+    setInterval(fetchTraffic, 300000);
+    
     setInterval(rotateMessage, 5000);
+    setInterval(() => {
+        document.getElementById('clock').innerText = new Date().toLocaleTimeString('fr-FR', {hour:'2-digit', minute:'2-digit'});
+    }, 1000);
 </script>
+
 </body>
 </html>

@@ -24,7 +24,7 @@
         .header-left { display: flex; align-items: center; }
         .logos-container { display: flex; gap: 8px; align-items: center; }
         
-        /* Logo RER PNG en haut à gauche */
+        /* Logo RER PNG Local */
         .logo-rer { width: 48px; height: 48px; display: flex; align-items: center; justify-content: center; }
         .logo-rer img { width: 100%; height: 100%; object-fit: contain; }
         
@@ -46,7 +46,7 @@
             padding: 15px 0; 
             border-bottom: 2px solid #ddd;
             background: var(--bg-page);
-            transition: transform 0.6s ease-in, opacity 0.5s ease-in;
+            transition: transform 0.6s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.4s ease;
             height: 70px;
         }
         .row.exit-left { transform: translateX(-120%); opacity: 0; }
@@ -60,14 +60,13 @@
         .blinking { animation: blinker 1.2s linear infinite; }
         @keyframes blinker { 50% { opacity: 0; } }
 
-        .time .val, .time .full-text { font-size: 32px; font-weight: bold; line-height: 0.85; }
+        .time .val, .time .full-text { font-size: 32px; font-weight: bold; line-height: 0.85; text-transform: uppercase; }
         .time .unit { font-size: 14px; margin-top: 2px; }
 
         .platform { display: flex; justify-content: center; border-left: 1px solid #ccc; padding-left: 10px; }
         .platform-box { background: var(--grey-bg); border: 2.5px solid var(--grey-border); border-radius: 8px; width: 60px; height: 60px; display: flex; align-items: center; justify-content: center; color: var(--dark); }
         .platform-num { font-size: 24px; font-weight: 900; }
 
-        /* --- ENCART TRAFIC --- */
         .info-trafic { background: var(--info-bg); height: 110px; display: flex; align-items: center; padding: 0 30px; border-top: 2px solid #b8c5ce; overflow: hidden; }
         .info-icon-container { margin-right: 35px; flex-shrink: 0; display: flex; align-items: center; }
         .icon-info-blue { width: 45px; height: 45px; background: white; border: 3px solid #1a3144; border-radius: 6px; display: flex; align-items: center; justify-content: center; font-size: 32px; font-weight: bold; color: #1a3144; }
@@ -90,7 +89,7 @@
         
         .time-box { background: #333; color: white; padding: 2px 6px; border-radius: 4px; font-family: monospace; display: inline-block; margin: 0 4px; }
 
-        footer { background: #333; color: #aaa; padding: 10px 20px; font-family: monospace; font-size: 11px; display: flex; justify-content: space-between; align-items: center; }
+        footer { background: #333; color: #aaa; padding: 10px 20px; font-family: monospace; font-size: 11px; z-index: 10; display: flex; justify-content: space-between; align-items: center; }
         .api-ok { color: var(--ok-color); font-weight: bold; }
     </style>
 </head>
@@ -99,12 +98,8 @@
 <header>
     <div class="header-left">
         <div class="logos-container">
-            <div class="logo-rer">
-                <img src="logos/rer.png" alt="RER" onerror="this.style.display='none'">
-            </div>
-            <div id="header-logo-a" class="header-line-logo">
-                <img src="logos/C01742.svg" alt="RER A" onerror="this.style.display='none'">
-            </div>
+            <div class="logo-rer"><img src="logos/rer.png" alt="RER"></div>
+            <div id="header-logo-a" class="header-line-logo"><img src="logos/C01742.svg" alt="RER A"></div>
         </div>
         <div class="station-info">
             <div class="station-name">JOINVILLE-LE-PONT</div>
@@ -142,7 +137,6 @@
     const MONITORING_REF = 'STIF:StopArea:SP:70640:'; 
     const DEFAULT_MSG = "Attentifs, ensemble • Ne pas se séparer de ses effets personnels • Signaler tout objet abandonné ou situation inhabituelle";
 
-    // Filtrage : On ne garde que Métros et RER
     const TRAFFIC_LINES = {
         'C01742': 'RER A', 'C01743': 'RER B', 'C01744': 'RER C', 'C01745': 'RER D', 'C01746': 'RER E',
         'C01371': 'M1', 'C01372': 'M2', 'C01373': 'M3', 'C01374': 'M4', 'C01375': 'M5', 'C01376': 'M6',
@@ -182,7 +176,6 @@
                             const isRER = TRAFFIC_LINES[id].startsWith('RER');
                             const channel = m.InfoChannelRef?.value;
 
-                            // Logique d'affichage RER (souple) / Métro (strict)
                             if (isRER || channel === "Perturbation" || channel === "PlannedWork" || lowerText.includes("travaux")) {
                                 let type = 'incident'; 
                                 if (lowerText.includes("travaux") || lowerText.includes("tvx") || channel === "PlannedWork") {
@@ -196,7 +189,7 @@
                     });
                 }
             } catch (e) { console.error(e); }
-            await sleep(300); 
+            await sleep(250); 
         }
         if (successCount > 0) {
             displayQueue = Array.from(new Set(newQueue.map(a => JSON.stringify(a)))).map(a => JSON.parse(a));
@@ -262,56 +255,109 @@
     }
 
     function processUpdate(visits) {
+        const now = new Date();
         const seen = new Set();
+        
         let newTrains = visits.map(v => v.MonitoredVehicleJourney).filter(j => {
             const line = j.LineRef?.value || "";
             if (!line.includes('C01742') && line !== 'A') return false;
-            const uniqueKey = `${j.DestinationName[0].value}_${j.MonitoredCall.AimedDepartureTime}`;
+            
+            const depTime = new Date(j.MonitoredCall.ExpectedDepartureTime || j.MonitoredCall.AimedDepartureTime);
+            const diffSeconds = (depTime - now) / 1000;
+            
+            // Nettoyage : Si le train est passé depuis plus de 45 secondes, on l'ignore
+            if (diffSeconds < -45) return false;
+
+            const uniqueKey = j.FramedVehicleJourneyRef?.DatedVehicleJourneyRef || `${j.DestinationName[0].value}_${j.MonitoredCall.AimedDepartureTime}`;
             if (seen.has(uniqueKey)) return false;
             seen.add(uniqueKey);
-            return !j.DestinationName[0].value.toLowerCase().includes('boissy') && !j.DestinationName[0].value.toLowerCase().includes('varenne');
-        }).sort((a, b) => new Date(a.MonitoredCall.ExpectedDepartureTime || a.MonitoredCall.AimedDepartureTime) - new Date(b.MonitoredCall.ExpectedDepartureTime || b.MonitoredCall.AimedDepartureTime)).slice(0, 7);
-        
+
+            const dest = j.DestinationName[0].value.toLowerCase();
+            return !dest.includes('boissy') && !dest.includes('varenne');
+        }).sort((a, b) => {
+            return new Date(a.MonitoredCall.ExpectedDepartureTime || a.MonitoredCall.AimedDepartureTime) - 
+                   new Date(b.MonitoredCall.ExpectedDepartureTime || b.MonitoredCall.AimedDepartureTime);
+        }).slice(0, 7);
+
+        // Détection de départ pour lancer l'animation
         if (currentTrainsData.length > 0 && newTrains.length > 0) {
-            if (currentTrainsData[0].FramedVehicleJourneyRef?.DatedVehicleJourneyRef !== newTrains[0].FramedVehicleJourneyRef?.DatedVehicleJourneyRef) {
-                const firstRow = document.querySelector('.row');
-                if (firstRow) {
-                    isAnimating = true;
-                    firstRow.classList.add('exit-left');
-                    setTimeout(() => { render(newTrains); isAnimating = false; }, 600);
-                    return;
-                }
+            const oldFirstId = currentTrainsData[0].FramedVehicleJourneyRef?.DatedVehicleJourneyRef;
+            const stillInList = newTrains.some(t => t.FramedVehicleJourneyRef?.DatedVehicleJourneyRef === oldFirstId);
+            
+            // Si le premier train a disparu, on anime la sortie
+            if (!stillInList || (newTrains[0].FramedVehicleJourneyRef?.DatedVehicleJourneyRef !== oldFirstId)) {
+                triggerDepartureAnimation(newTrains);
+                return;
             }
         }
+        
         render(newTrains);
+    }
+
+    function triggerDepartureAnimation(newTrains) {
+        const firstRow = document.querySelector('.row');
+        if (firstRow && !isAnimating) {
+            isAnimating = true;
+            firstRow.classList.add('exit-left');
+            setTimeout(() => { 
+                render(newTrains); 
+                isAnimating = false; 
+            }, 600);
+        } else {
+            render(newTrains);
+        }
     }
 
     function render(trains) {
         const board = document.getElementById('board');
         const now = new Date();
         let html = '';
-        if (trains.length === 0) { board.innerHTML = '<div style="text-align:center;margin-top:100px;color:#999;">Aucun train.</div>'; return; }
+        
+        if (trains.length === 0) { 
+            board.innerHTML = '<div style="text-align:center;margin-top:100px;color:#999;font-size:24px;">Aucun train à l\'approche</div>'; 
+            currentTrainsData = [];
+            return; 
+        }
+
         trains.forEach(j => {
             const dest = j.DestinationName[0].value.replace(/GARE DE /gi, '').trim();
-            const diff = Math.round((new Date(j.MonitoredCall.ExpectedDepartureTime || j.MonitoredCall.AimedDepartureTime) - now) / 60000);
-            const isAtStop = j.MonitoredCall.VehicleAtStop === true || j.MonitoredCall.VehicleAtStop === "true";
-            let timeHTML = isAtStop ? '<span class="full-text">À quai</span>' : (diff <= 0 ? '<span class="full-text">À l\'approche</span>' : `<span class="val">${diff}</span><span class="unit">min</span>`);
+            const depTime = new Date(j.MonitoredCall.ExpectedDepartureTime || j.MonitoredCall.AimedDepartureTime);
+            const diffMinutes = Math.round((depTime - now) / 60000);
+            const isAtStop = (j.MonitoredCall.VehicleAtStop === true || j.MonitoredCall.VehicleAtStop === "true");
+            
+            let timeHTML = '';
+            let statusClass = '';
+
+            if (isAtStop) {
+                timeHTML = '<span class="full-text">À quai</span>';
+            } else if (diffMinutes <= 0) {
+                timeHTML = '<span class="full-text">À l\'approche</span>';
+                statusClass = 'blinking';
+            } else {
+                timeHTML = `<span class="val">${diffMinutes}</span><span class="unit">min</span>`;
+            }
+
             const platform = j.MonitoredCall.DeparturePlatformName?.value || "";
+            
             html += `<div class="row">
                         <div class="mission">${j.JourneyNote?.[0]?.value || '----'}</div>
                         <div class="dest">${dest}</div>
-                        <div class="time"><div class="time-wrapper ${diff <= 0 && !isAtStop ? 'blinking' : ''}">${timeHTML}</div></div>
+                        <div class="time"><div class="time-wrapper ${statusClass}">${timeHTML}</div></div>
                         <div class="platform">${platform ? `<div class="platform-box"><span class="platform-num">${platform}</span></div>` : ''}</div>
                      </div>`;
         });
+        
         board.innerHTML = html;
         currentTrainsData = trains;
     }
 
     updateClock();
     setInterval(updateClock, 1000);
+    
+    // --- MISE À JOUR TOUTES LES 10 SECONDES ---
     fetchSchedules();
-    setInterval(fetchSchedules, 20000);
+    setInterval(fetchSchedules, 10000); 
+
     fetchGlobalTraffic();
     setInterval(fetchGlobalTraffic, 300000); 
     setInterval(rotateMessage, 5000);

@@ -32,7 +32,6 @@
             font-size: 16px; font-weight: bold; color: var(--dark); box-sizing: border-box;
         }
         
-        /* Conteneur pour le logo local */
         .header-line-logo { width: 48px; height: 48px; display: flex; align-items: center; justify-content: center; }
         .header-line-logo img { width: 100%; height: 100%; object-fit: contain; }
         
@@ -79,65 +78,22 @@
         .platform-text { font-size: 10px; text-transform: uppercase; font-weight: bold; }
         .platform-num { font-size: 24px; font-weight: 900; }
 
-        /* --- ENCART TRAFIC --- */
         .info-trafic {
-            background: var(--info-bg);
-            height: 110px;
-            display: flex;
-            align-items: center;
-            padding: 0 30px;
-            position: relative;
-            z-index: 5;
-            border-top: 2px solid #b8c5ce;
-            overflow: hidden;
+            background: var(--info-bg); height: 110px; display: flex; align-items: center; padding: 0 30px; border-top: 2px solid #b8c5ce; overflow: hidden;
         }
 
         .info-icon-container { margin-right: 35px; flex-shrink: 0; display: flex; align-items: center; }
         .icon-info-blue { width: 45px; height: 45px; background: white; border: 3px solid #1a3144; border-radius: 6px; display: flex; align-items: center; justify-content: center; font-size: 32px; font-weight: bold; color: #1a3144; }
 
-        .icon-global { display: none; width: 45px; height: 45px; flex-shrink: 0; }
-        .icon-global svg { width: 100%; height: 100%; display: block; }
-
-        .dynamic-wrapper {
-            position: relative;
-            display: none; 
-            align-items: center;
-            justify-content: center;
-        }
-
-        .line-icon-main {
-            display: flex; align-items: center; justify-content: center;
-            width: 45px; height: 45px; flex-shrink: 0; box-sizing: border-box;
-        }
+        .dynamic-wrapper { position: relative; display: none; align-items: center; justify-content: center; }
+        .line-icon-main { display: flex; align-items: center; justify-content: center; width: 45px; height: 45px; flex-shrink: 0; }
         .line-icon-main img { width: 100%; height: 100%; object-fit: contain; }
 
-        /* Fallbacks CSS au cas où l'image locale est manquante */
-        .line-icon-main.fallback { font-family: "Helvetica Neue", Arial, sans-serif; font-weight: bold; border-radius: 10px; font-size: 24px; }
-        .line-icon-main.icon-rer { border-radius: 10px; } 
-        .line-icon-main.icon-m { border-radius: 50%; }
-
         .badge-dynamic {
-            position: absolute;
-            bottom: -6px;
-            right: -8px;
-            width: 24px;
-            height: 24px;
-            display: none;
-            border: 3px solid var(--info-bg);
-            border-radius: 8px;
-            background-color: var(--info-bg); 
-            object-fit: contain;
-            box-sizing: content-box; 
+            position: absolute; bottom: -6px; right: -8px; width: 24px; height: 24px; display: none;
+            border: 3px solid var(--info-bg); border-radius: 8px; background-color: var(--info-bg); 
+            object-fit: contain; box-sizing: content-box; 
         }
-
-        /* Classes de couleurs pour le secours */
-        .bg-rer-a { background-color: #CE283C; color: white; }
-        .bg-rer-b { background-color: #5780B8; color: white; }
-        .bg-rer-c { background-color: #F2C94C; color: black; }
-        .bg-rer-d { background-color: #1A865B; color: white; }
-        .bg-rer-e { background-color: #9A4F8A; color: white; }
-        .bg-m1 { background-color: #F5C946; color: black; }
-        /* ... (les autres couleurs sont conservées) */
 
         .info-scroll-container { flex-grow: 1; height: 100%; display: flex; align-items: center; overflow: hidden; position: relative; }
         .info-text { font-size: 24px; font-weight: 700; color: var(--info-text); width: 100%; display: block; line-height: 1.35; transition: transform 0.5s, opacity 0.5s; }
@@ -149,7 +105,6 @@
 
         footer { background: #333; color: #aaa; padding: 10px 20px; font-family: monospace; font-size: 11px; z-index: 10; display: flex; justify-content: space-between; align-items: center; }
         .api-ok { color: var(--ok-color); font-weight: bold; }
-        .api-ko { color: var(--ko-color); font-weight: bold; }
     </style>
 </head>
 <body>
@@ -189,7 +144,7 @@
     <div id="debug-schedules">> SIEL : Initialisation...</div>
     <div class="footer-apis">
         <div id="debug-traffic">API Info Trafic : --</div>
-        <div id="debug-indices"><span class="api-ok">Indices : Stockage Local</span></div>
+        <div id="debug-indices"><span class="api-ok">Logos : Stockage Local OK</span></div>
     </div>
 </footer>
 
@@ -198,7 +153,8 @@
     const MONITORING_REF = 'STIF:StopArea:SP:70640:'; 
     const DEFAULT_MSG = "Attentifs, ensemble • Ne pas se séparer de ses effets personnels • Signaler tout objet abandonné ou situation inhabituelle";
 
-    const LINE_MAP = {
+    // On ne garde que les RER et Métros pour le trafic
+    const TRAFFIC_LINES = {
         'C01742': 'RER A', 'C01743': 'RER B', 'C01744': 'RER C', 'C01745': 'RER D', 'C01746': 'RER E',
         'C01371': 'M1', 'C01372': 'M2', 'C01373': 'M3', 'C01374': 'M4', 'C01375': 'M5', 'C01376': 'M6',
         'C01377': 'M7', 'C01378': 'M8', 'C01379': 'M9', 'C01380': 'M10', 'C01381': 'M11', 'C01382': 'M12',
@@ -217,7 +173,7 @@
 
     async function fetchGlobalTraffic() {
         const debugNode = document.getElementById('debug-traffic');
-        const lineIds = Object.keys(LINE_MAP);
+        const lineIds = Object.keys(TRAFFIC_LINES);
         let newQueue = [{text: DEFAULT_MSG, type: 'default', line: null, lineId: null}];
         let successCount = 0;
 
@@ -235,12 +191,21 @@
                         const msgs = m.Content?.Message || [];
                         const short = msgs.find(msg => msg.MessageType === "SHORT_MESSAGE");
                         let text = short ? short.MessageText.value : (msgs[0]?.MessageText?.value || "");
+                        
                         if (text) {
                             const lowerText = text.toLowerCase();
-                            if (id === 'C01742' || channel === "Perturbation" || channel === "PlannedWork" || lowerText.includes("travaux")) {
-                                let type = (channel === "PlannedWork" || lowerText.includes("travaux")) ? 'works' : 'incident';
-                                newQueue.push({text: text, type: type, line: LINE_MAP[id], lineId: id});
+                            let type = 'incident'; // Par défaut perturbation (!)
+
+                            // Priorité aux travaux
+                            if (channel === "PlannedWork" || lowerText.includes("travaux") || lowerText.includes("tvx")) {
+                                type = 'works';
+                            } 
+                            // Sinon on regarde s'il y a interruption (sans travaux)
+                            else if (lowerText.includes("interrompu") || lowerText.includes("interruption") || lowerText.includes("suspendu")) {
+                                type = 'interruption';
                             }
+                            
+                            newQueue.push({text: text, type: type, line: TRAFFIC_LINES[id], lineId: id});
                         }
                     });
                 }
@@ -250,9 +215,9 @@
 
         if (successCount > 0) {
             displayQueue = Array.from(new Set(newQueue.map(a => JSON.stringify(a)))).map(a => JSON.parse(a));
-            debugNode.innerHTML = `<span class="api-ok">API Info Trafic : OK (${displayQueue.length-1} alertes)</span>`;
+            debugNode.innerHTML = `<span class="api-ok">Trafic : OK (${displayQueue.length-1} alertes)</span>`;
         } else {
-            debugNode.innerHTML = `<span class="api-ko">API Info Trafic : ERREUR</span>`;
+            debugNode.innerHTML = `<span class="api-ko">Trafic : ERREUR</span>`;
         }
     }
 
@@ -273,22 +238,32 @@
             iconStd.style.display = 'none';
             wrapperDyn.style.display = 'none';
             badgeDyn.style.display = 'none';
+            badgeDyn.classList.remove('blinking');
 
             if (current.type === 'default') {
                 iconStd.style.display = 'flex';
             } else if (current.lineId) { 
                 wrapperDyn.style.display = 'flex';
-                // Utilisation de l'image locale avec fallback CSS si le fichier est absent
                 iconDyn.innerHTML = `<img src="logos/${current.lineId}.svg" 
                                           onerror="this.parentElement.innerHTML='${current.line.replace('RER ','').replace('M','')}'" 
                                           alt="${current.line}">`;
                 
                 badgeDyn.style.display = 'block';
-                badgeDyn.src = current.type === 'incident' 
-                    ? "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect x='5' y='5' width='90' height='90' rx='20' fill='%23F2C94C' stroke='%231A1A1A' stroke-width='10'/><path d='M42 25 h16 l-2 35 h-12 z' fill='%231A1A1A'/><circle cx='50' cy='75' r='8' fill='%231A1A1A'/></svg>"
-                    : "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect x='5' y='5' width='90' height='90' rx='20' fill='%23CA553C' stroke='%231A1A1A' stroke-width='10'/><path d='M44 34 L56 34 L53 22 C52 18 48 18 47 22 Z' fill='white'/><polygon points='39,55 61,55 57,40 43,40' fill='white'/><path d='M34 61 L66 61 L68 68 C76 68 76 80 66 80 L34 80 C24 80 24 68 32 68 Z' fill='white'/></svg>";
-                
-                if (current.type === 'incident') badgeDyn.classList.add('blinking');
+
+                if (current.type === 'works') {
+                    // Badge Plot de travaux (Statique)
+                    badgeDyn.src = "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect x='5' y='5' width='90' height='90' rx='20' fill='%23CA553C' stroke='%231A1A1A' stroke-width='10'/><path d='M44 34 L56 34 L53 22 C52 18 48 18 47 22 Z' fill='white'/><polygon points='39,55 61,55 57,40 43,40' fill='white'/><path d='M34 61 L66 61 L68 68 C76 68 76 80 66 80 L34 80 C24 80 24 68 32 68 Z' fill='white'/></svg>";
+                } 
+                else if (current.type === 'interruption') {
+                    // Badge Croix Blanche sur fond Rouge (Clignotant)
+                    badgeDyn.src = "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect x='5' y='5' width='90' height='90' rx='20' fill='%23ff4444' stroke='%231A1A1A' stroke-width='10'/><path d='M30 30 L70 70 M70 30 L30 70' stroke='white' stroke-width='12' stroke-linecap='round'/></svg>";
+                    badgeDyn.classList.add('blinking');
+                }
+                else {
+                    // Badge Perturbation "!" (Clignotant)
+                    badgeDyn.src = "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect x='5' y='5' width='90' height='90' rx='20' fill='%23F2C94C' stroke='%231A1A1A' stroke-width='10'/><path d='M42 25 h16 l-2 35 h-12 z' fill='%231A1A1A'/><circle cx='50' cy='75' r='8' fill='%231A1A1A'/></svg>";
+                    badgeDyn.classList.add('blinking');
+                }
             }
 
             txtNode.innerHTML = formattedText;

@@ -267,6 +267,9 @@
     
     const iconCache = {};
 
+    // Fonction de pause pour éviter le blocage de l'API (Erreur 429)
+    const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
+
     function updateClock() {
         document.getElementById('clock').innerText = new Date().toLocaleTimeString('fr-FR', {hour: '2-digit', minute:'2-digit'});
     }
@@ -282,17 +285,13 @@
             const response = await fetch(proxy, { headers: { 'apikey': API_KEY, 'Accept': 'image/svg+xml' } });
             if (response.ok) {
                 let svgContent = await response.text();
-                // On s'assure que le cache reçoit bien le SVG
                 iconCache[lineId] = svgContent;
-                // Mise à jour de l'indicateur d'état (Vert)
                 debugIndices.innerHTML = `<span class="api-ok">API Indices : OK</span>`;
             } else {
-                // Mise à jour de l'indicateur d'état (Rouge)
                 debugIndices.innerHTML = `<span class="api-ko">API Indices : ERREUR ${response.status}</span>`;
             }
         } catch (e) { 
             console.error('Erreur lors du téléchargement de l\'icône :', e);
-            // Mise à jour de l'indicateur d'état (Rouge) en cas de fail proxy/réseau
             debugIndices.innerHTML = `<span class="api-ko">API Indices : ERREUR RÉSEAU</span>`;
         }
     }
@@ -342,18 +341,28 @@
                             }
                         }
                     });
+                } else if (response.status === 429) {
+                    console.warn(`Erreur 429 sur la ligne ${id} - On ralentit.`);
                 }
-            } catch (e) { }
+            } catch (e) { 
+                console.error(e);
+            }
+            
+            // PAUSE DE 300ms POUR ÉVITER L'ERREUR 429
+            await sleep(300); 
         }
 
         if (successCount > 0) {
             displayQueue = Array.from(new Set(newQueue.map(a => JSON.stringify(a)))).map(a => JSON.parse(a));
             debugNode.innerHTML = `<span class="api-ok">API Info Trafic : OK (${displayQueue.length-1} alertes)</span>`;
             
-            // Lancement du téléchargement des icônes en parallèle sans bloquer la file
-            displayQueue.forEach(item => {
-                if (item.lineId) fetchLineIcon(item.lineId);
-            });
+            // Lancement du téléchargement des icônes de façon séquentielle
+            for (const item of displayQueue) {
+                if (item.lineId) {
+                    await fetchLineIcon(item.lineId);
+                    await sleep(200); // Petite pause ici aussi pour les images
+                }
+            }
         } else {
             debugNode.innerHTML = `<span class="api-ko">API Info Trafic : ERREUR RÉSEAU</span>`;
         }

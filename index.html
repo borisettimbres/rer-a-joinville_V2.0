@@ -55,12 +55,7 @@
             overflow: hidden;
         }
         .row.exit-left { transform: translateX(-120%); opacity: 0; height: 0; padding-top: 0; padding-bottom: 0; border-bottom: none; }
-        @keyframes slideInFromBottom {
-            0% { transform: translateY(50px); opacity: 0; }
-            100% { transform: translateY(0); opacity: 1; }
-        }
-        .row.new-row { animation: slideInFromBottom 0.5s ease-out forwards; }
-
+        
         .mission { background: #ddd; padding: 6px; border-radius: 4px; text-align: center; font-weight: bold; font-family: monospace; font-size: 16px; }
         .dest { font-size: 28px; font-weight: 700; padding-left: 15px; color: var(--dark); }
         
@@ -75,7 +70,6 @@
 
         .platform { display: flex; justify-content: center; border-left: 1px solid #ccc; padding-left: 10px; }
         .platform-box { background: var(--grey-bg); border: 2.5px solid var(--grey-border); border-radius: 8px; width: 60px; height: 60px; display: flex; flex-direction: column; align-items: center; justify-content: center; box-sizing: border-box; color: var(--dark); }
-        .platform-text { font-size: 10px; text-transform: uppercase; font-weight: bold; }
         .platform-num { font-size: 24px; font-weight: 900; }
 
         .info-trafic {
@@ -153,7 +147,7 @@
     const MONITORING_REF = 'STIF:StopArea:SP:70640:'; 
     const DEFAULT_MSG = "Attentifs, ensemble • Ne pas se séparer de ses effets personnels • Signaler tout objet abandonné ou situation inhabituelle";
 
-    // On ne garde que les RER et Métros pour le trafic
+    // Liste des lignes pour lesquelles on veut le trafic
     const TRAFFIC_LINES = {
         'C01742': 'RER A', 'C01743': 'RER B', 'C01744': 'RER C', 'C01745': 'RER D', 'C01746': 'RER E',
         'C01371': 'M1', 'C01372': 'M2', 'C01373': 'M3', 'C01374': 'M4', 'C01375': 'M5', 'C01376': 'M6',
@@ -194,18 +188,21 @@
                         
                         if (text) {
                             const lowerText = text.toLowerCase();
-                            let type = 'incident'; // Par défaut perturbation (!)
-
-                            // Priorité aux travaux
-                            if (channel === "PlannedWork" || lowerText.includes("travaux") || lowerText.includes("tvx")) {
-                                type = 'works';
-                            } 
-                            // Sinon on regarde s'il y a interruption (sans travaux)
-                            else if (lowerText.includes("interrompu") || lowerText.includes("interruption") || lowerText.includes("suspendu")) {
-                                type = 'interruption';
-                            }
+                            const isRER = TRAFFIC_LINES[id].startsWith('RER');
                             
-                            newQueue.push({text: text, type: type, line: TRAFFIC_LINES[id], lineId: id});
+                            // On affiche si c'est un RER (plus laxiste) OU si c'est un métro avec alerte
+                            if (isRER || channel === "Perturbation" || channel === "PlannedWork" || lowerText.includes("travaux") || lowerText.includes("tvx")) {
+                                
+                                let type = 'incident'; // Par défaut (!) clignotant
+                                
+                                if (lowerText.includes("travaux") || lowerText.includes("tvx") || channel === "PlannedWork") {
+                                    type = 'works'; // Plot orange statique
+                                } else if (lowerText.includes("interrompu") || lowerText.includes("interruption") || lowerText.includes("suspendu") || lowerText.includes("arrêt")) {
+                                    type = 'interruption'; // Croix rouge clignotante
+                                }
+                                
+                                newQueue.push({text: text, type: type, line: TRAFFIC_LINES[id], lineId: id});
+                            }
                         }
                     });
                 }
@@ -233,7 +230,6 @@
         setTimeout(() => {
             if (queueIndex >= displayQueue.length) queueIndex = 0;
             const current = displayQueue[queueIndex];
-            let formattedText = current.text.replace(/(\d{1,2}h\d{2}|\d{1,2}:\d{2})/g, '<span class="time-box">$1</span>');
 
             iconStd.style.display = 'none';
             wrapperDyn.style.display = 'none';
@@ -260,13 +256,13 @@
                     badgeDyn.classList.add('blinking');
                 }
                 else {
-                    // Badge Perturbation "!" (Clignotant)
+                    // Badge Perturbation Jaune "!" (Clignotant)
                     badgeDyn.src = "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect x='5' y='5' width='90' height='90' rx='20' fill='%23F2C94C' stroke='%231A1A1A' stroke-width='10'/><path d='M42 25 h16 l-2 35 h-12 z' fill='%231A1A1A'/><circle cx='50' cy='75' r='8' fill='%231A1A1A'/></svg>";
                     badgeDyn.classList.add('blinking');
                 }
             }
 
-            txtNode.innerHTML = formattedText;
+            txtNode.innerHTML = current.text.replace(/(\d{1,2}h\d{2}|\d{1,2}:\d{2})/g, '<span class="time-box">$1</span>');
             txtNode.classList.remove('slide-up-exit');
             txtNode.classList.add('slide-up-enter');
             setTimeout(() => txtNode.classList.remove('slide-up-enter'), 50);

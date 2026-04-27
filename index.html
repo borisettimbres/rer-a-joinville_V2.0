@@ -16,6 +16,7 @@
             --info-text: #1a3144;
             --ok-color: #00ff00;
             --ko-color: #ff4444;
+            --loading-color: #F59E0B;
         }
         body { background: var(--bg-page); font-family: 'Cabin', sans-serif; margin: 0; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
         
@@ -118,7 +119,7 @@
 
         /* Pour forcer les SVG API à prendre la bonne taille */
         .line-icon-main svg, .header-line-logo svg {
-            width: 100%; height: 100%; display: block;
+            width: 100% !important; height: 100% !important; display: block;
         }
 
         /* --- BADGE INCIDENT / TRAVAUX --- */
@@ -187,9 +188,15 @@
             vertical-align: baseline;
         }
 
-        footer { background: #333; color: #aaa; padding: 10px 20px; font-family: monospace; font-size: 11px; z-index: 10; display: flex; justify-content: space-between; }
+        footer { 
+            background: #333; color: #aaa; padding: 10px 20px; 
+            font-family: monospace; font-size: 11px; z-index: 10; 
+            display: flex; justify-content: space-between; align-items: center;
+        }
+        .footer-apis { display: flex; gap: 20px; }
         .api-ok { color: var(--ok-color); font-weight: bold; }
         .api-ko { color: var(--ko-color); font-weight: bold; }
+        .api-loading { color: var(--loading-color); font-weight: bold; }
     </style>
 </head>
 <body>
@@ -235,7 +242,10 @@
 
 <footer>
     <div id="debug-schedules">> SIEL : Initialisation...</div>
-    <div id="debug-traffic">API Info Trafic : --</div>
+    <div class="footer-apis">
+        <div id="debug-traffic"><span class="api-loading">API Info Trafic : En attente...</span></div>
+        <div id="debug-indices"><span class="api-loading">API Indices : En attente...</span></div>
+    </div>
 </footer>
 
 <script>
@@ -266,14 +276,24 @@
         
         const url = `https://prim.iledefrance-mobilites.fr/marketplace/ilico/getIcon/${lineId}`;
         const proxy = `https://corsproxy.io/?${encodeURIComponent(url)}`;
+        const debugIndices = document.getElementById('debug-indices');
         
         try {
             const response = await fetch(proxy, { headers: { 'apikey': API_KEY, 'Accept': 'image/svg+xml' } });
             if (response.ok) {
-                iconCache[lineId] = await response.text();
+                let svgContent = await response.text();
+                // On s'assure que le cache reçoit bien le SVG
+                iconCache[lineId] = svgContent;
+                // Mise à jour de l'indicateur d'état (Vert)
+                debugIndices.innerHTML = `<span class="api-ok">API Indices : OK</span>`;
+            } else {
+                // Mise à jour de l'indicateur d'état (Rouge)
+                debugIndices.innerHTML = `<span class="api-ko">API Indices : ERREUR ${response.status}</span>`;
             }
         } catch (e) { 
             console.error('Erreur lors du téléchargement de l\'icône :', e);
+            // Mise à jour de l'indicateur d'état (Rouge) en cas de fail proxy/réseau
+            debugIndices.innerHTML = `<span class="api-ko">API Indices : ERREUR RÉSEAU</span>`;
         }
     }
 
@@ -328,14 +348,14 @@
 
         if (successCount > 0) {
             displayQueue = Array.from(new Set(newQueue.map(a => JSON.stringify(a)))).map(a => JSON.parse(a));
-            debugNode.innerHTML = `<span class="api-ok">API TRAFFIC OK (${displayQueue.length-1} alertes)</span>`;
+            debugNode.innerHTML = `<span class="api-ok">API Info Trafic : OK (${displayQueue.length-1} alertes)</span>`;
             
             // Lancement du téléchargement des icônes en parallèle sans bloquer la file
             displayQueue.forEach(item => {
                 if (item.lineId) fetchLineIcon(item.lineId);
             });
         } else {
-            debugNode.innerHTML = `<span class="api-ko">API TRAFFIC : ERREUR RÉSEAU</span>`;
+            debugNode.innerHTML = `<span class="api-ko">API Info Trafic : ERREUR RÉSEAU</span>`;
         }
     }
 
@@ -381,7 +401,7 @@
                     iconDyn.innerHTML = iconCache[current.lineId];
                     iconDyn.className = 'line-icon-main'; 
                 } else {
-                    // SI LE SVG CHARGE ENCORE : on applique le vrai CSS correspondant (et non plus un "A" rouge générique)
+                    // SI LE SVG CHARGE ENCORE OU A ÉCHOUÉ : on applique le vrai CSS correspondant
                     const isRer = current.line.startsWith('RER');
                     const shortName = current.line.replace('RER ', '').replace('M', ''); 
                     const shapeClass = isRer ? 'icon-rer' : 'icon-m';

@@ -22,20 +22,23 @@
         .header-line-logo { width: 48px; height: 48px; display: flex; align-items: center; justify-content: center; }
         .header-line-logo img { width: 100%; height: 100%; object-fit: contain; }
         
+        /* ESPACEMENT RÉTABLI ICI */
+        .station-info { margin-left: 25px; }
+        
         .station-name { font-size: 26px; font-weight: bold; color: var(--dark); letter-spacing: -0.5px; }
         .direction-info { font-size: 16px; color: var(--red-a); margin-top: 4px; font-weight: bold; }
         .clock { background: var(--dark); color: var(--yellow); padding: 10px 22px; border-radius: 8px; font-size: 28px; font-weight: bold; }
         
-        /* Board avec espacement rétabli */
+        /* Board avec espacement des lignes */
         .board { flex-grow: 1; padding: 0 20px; display: flex; flex-direction: column; overflow: hidden; }
         
         .row { 
             display: grid; grid-template-columns: 100px 1fr 220px 100px; 
             align-items: center; 
-            padding: 15px 0; /* Espacement initial */
+            padding: 15px 0; 
             border-bottom: 2px solid #ddd;
             background: var(--bg-page); 
-            height: 70px; /* Hauteur initiale */
+            height: 70px;
             overflow: hidden;
             transition: 
                 transform 0.6s cubic-bezier(0.4, 0, 0.2, 1), 

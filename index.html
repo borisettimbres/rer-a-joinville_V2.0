@@ -16,10 +16,8 @@
         .header-left { display: flex; align-items: center; }
         .logos-container { display: flex; gap: 8px; align-items: center; }
         
-        /* Logo RER PNG Local */
         .logo-rer { width: 48px; height: 48px; display: flex; align-items: center; justify-content: center; }
         .logo-rer img { width: 100%; height: 100%; object-fit: contain; }
-        
         .header-line-logo { width: 48px; height: 48px; display: flex; align-items: center; justify-content: center; }
         .header-line-logo img { width: 100%; height: 100%; object-fit: contain; }
         
@@ -27,15 +25,34 @@
         .direction-info { font-size: 16px; color: var(--red-a); margin-top: 4px; font-weight: bold; }
         .clock { background: var(--dark); color: var(--yellow); padding: 10px 22px; border-radius: 8px; font-size: 28px; font-weight: bold; }
         
-        .board { flex-grow: 1; padding: 0 20px; display: flex; flex-direction: column; }
+        /* Conteneur principal des trains */
+        .board { flex-grow: 1; padding: 0 20px; display: flex; flex-direction: column; overflow: hidden; }
         
         .row { 
             display: grid; grid-template-columns: 100px 1fr 220px 100px; 
-            align-items: center; padding: 15px 0; border-bottom: 2px solid #ddd;
-            background: var(--bg-page); height: 70px; overflow: hidden;
-            transition: transform 0.6s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.4s ease;
+            align-items: center; 
+            border-bottom: 2px solid #ddd;
+            background: var(--bg-page); 
+            height: 70px; /* Hauteur fixe pour l'animation */
+            overflow: hidden;
+            /* Transition combinée : Glissement + Aspiration */
+            transition: 
+                transform 0.6s cubic-bezier(0.4, 0, 0.2, 1), 
+                opacity 0.4s ease,
+                height 0.6s cubic-bezier(0.4, 0, 0.2, 1),
+                padding 0.6s cubic-bezier(0.4, 0, 0.2, 1),
+                border-bottom 0.6s ease;
         }
-        .row.exit-left { transform: translateX(-120%); opacity: 0; }
+
+        /* Animation de sortie : Glisse à gauche ET s'écrase en hauteur */
+        .row.exit-left { 
+            transform: translateX(-120%); 
+            opacity: 0; 
+            height: 0 !important; 
+            padding-top: 0 !important; 
+            padding-bottom: 0 !important;
+            border-bottom: 0 solid transparent !important;
+        }
 
         .mission { background: #ddd; padding: 6px; border-radius: 4px; text-align: center; font-weight: bold; font-family: monospace; font-size: 16px; }
         .dest { font-size: 28px; font-weight: 700; padding-left: 15px; color: var(--dark); }
@@ -43,7 +60,6 @@
         .time { background: var(--dark); color: var(--yellow); border-radius: 8px; text-align: center; width: 190px; height: 60px; display: flex; justify-content: center; align-items: center; overflow: hidden; }
         .time-wrapper { display: flex; flex-direction: column; align-items: center; justify-content: center; width: 100%; }
         
-        /* Animation Pop lors du changement de chiffre */
         @keyframes popUpdate {
             0% { transform: scale(1); filter: brightness(1); }
             50% { transform: scale(1.15); filter: brightness(1.4); color: #fff; }
@@ -135,7 +151,7 @@
     };
 
     let currentTrainsData = [];
-    let lastKnownTimes = {}; // Mémoire pour détecter les changements de temps et animer
+    let lastKnownTimes = {}; 
     let isAnimating = false;
     let displayQueue = [{text: DEFAULT_MSG, type: 'default', line: null, lineId: null}];
     let queueIndex = 0;
@@ -163,23 +179,15 @@
                         const text = msgs[0]?.MessageText?.value || "";
                         if (text) {
                             const lowerText = text.toLowerCase();
-                            const isRER = TRAFFIC_LINES[id].startsWith('RER');
-                            const channel = m.InfoChannelRef?.value;
-
-                            if (isRER || channel === "Perturbation" || channel === "PlannedWork" || lowerText.includes("travaux") || lowerText.includes("tvx")) {
-                                let type = 'incident'; 
-                                if (lowerText.includes("travaux") || lowerText.includes("tvx") || channel === "PlannedWork") {
-                                    type = 'works';
-                                } else if (lowerText.includes("interrompu") || lowerText.includes("interruption") || lowerText.includes("suspendu") || lowerText.includes("arrêt")) {
-                                    type = 'interruption';
-                                }
-                                newQueue.push({text, type, line: TRAFFIC_LINES[id], lineId: id});
-                            }
+                            let type = 'incident'; 
+                            if (lowerText.includes("travaux") || lowerText.includes("tvx")) type = 'works';
+                            else if (lowerText.includes("interrompu") || lowerText.includes("interruption")) type = 'interruption';
+                            newQueue.push({text, type, line: TRAFFIC_LINES[id], lineId: id});
                         }
                     });
                 }
             } catch (e) { console.error(e); }
-            await sleep(250); 
+            await sleep(200); 
         }
         if (successCount > 0) {
             displayQueue = Array.from(new Set(newQueue.map(a => JSON.stringify(a)))).map(a => JSON.parse(a));
@@ -198,7 +206,6 @@
         setTimeout(() => {
             if (queueIndex >= displayQueue.length) queueIndex = 0;
             const current = displayQueue[queueIndex];
-
             iconStd.style.display = 'none'; wrapperDyn.style.display = 'none'; badgeDyn.style.display = 'none';
             badgeDyn.classList.remove('blinking');
 
@@ -219,7 +226,6 @@
                     badgeDyn.classList.add('blinking');
                 }
             }
-
             txtNode.innerHTML = current.text.replace(/(\d{1,2}h\d{2}|\d{1,2}:\d{2})/g, '<span class="time-box">$1</span>');
             txtNode.style.opacity = 1;
             queueIndex = (queueIndex + 1) % displayQueue.length;
@@ -248,7 +254,6 @@
             if (!line.includes('C01742') && line !== 'A') return false;
             const depTime = new Date(j.MonitoredCall.ExpectedDepartureTime || j.MonitoredCall.AimedDepartureTime);
             if ((depTime - now) / 1000 < -45) return false;
-
             const id = j.FramedVehicleJourneyRef?.DatedVehicleJourneyRef || `${j.DestinationName[0].value}_${j.MonitoredCall.AimedDepartureTime}`;
             if (seen.has(id)) return false; seen.add(id);
             return !j.DestinationName[0].value.toLowerCase().includes('boissy') && !j.DestinationName[0].value.toLowerCase().includes('varenne');
@@ -256,20 +261,29 @@
         
         if (currentTrainsData.length > 0 && newTrains.length > 0) {
             const oldFirstId = currentTrainsData[0].FramedVehicleJourneyRef?.DatedVehicleJourneyRef;
-            if (!newTrains.some(t => (t.FramedVehicleJourneyRef?.DatedVehicleJourneyRef || "") === oldFirstId)) {
+            if (!newTrains.some(t => t.FramedVehicleJourneyRef?.DatedVehicleJourneyRef === oldFirstId)) {
                 triggerDeparture(newTrains); return;
             }
         }
         render(newTrains);
     }
 
+    // --- FONCTION DE DEPART CORRIGÉE POUR L'ASPIRATION ---
     function triggerDeparture(newTrains) {
         const firstRow = document.querySelector('.row');
         if (firstRow && !isAnimating) {
             isAnimating = true;
-            firstRow.classList.add('exit-left');
-            setTimeout(() => { render(newTrains); isAnimating = false; }, 600);
-        } else render(newTrains);
+            // Déclenche l'animation CSS (glissement + réduction hauteur)
+            firstRow.classList.add('exit-left'); 
+            
+            // On attend la fin de la transition (0.6s) pour reconstruire le DOM proprement
+            setTimeout(() => { 
+                render(newTrains); 
+                isAnimating = false; 
+            }, 600);
+        } else {
+            render(newTrains);
+        }
     }
 
     function render(trains) {
@@ -306,7 +320,7 @@
     }
 
     updateClock(); setInterval(updateClock, 1000);
-    fetchSchedules(); setInterval(fetchSchedules, 10000); // REFRESH 10s
+    fetchSchedules(); setInterval(fetchSchedules, 10000); 
     fetchGlobalTraffic(); setInterval(fetchGlobalTraffic, 300000); 
     setInterval(rotateMessage, 5000);
 </script>

@@ -31,12 +31,8 @@
             font-size: 16px; font-weight: bold; color: var(--dark); box-sizing: border-box;
         }
         
-        .logo-a {
-            background: var(--red-a); border-radius: 10px;
-            width: 48px; height: 48px; display: flex; align-items: center; justify-content: center;
-            font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
-            font-size: 34px; font-weight: bold; color: white; box-sizing: border-box;
-        }
+        /* Conteneur pour le logo officiel de l'en-tête injecté via API */
+        .header-line-logo { width: 48px; height: 48px; }
         
         .station-info { margin-left: 15px; }
         .station-name { font-size: 26px; font-weight: bold; line-height: 1; letter-spacing: -0.5px; color: var(--dark); }
@@ -113,15 +109,16 @@
             justify-content: center;
         }
 
-        /* --- ICONS LIGNES DYNAMIQUES --- */
+        /* --- CONTENEUR ICÔNES API --- */
         .line-icon-main {
             display: flex; align-items: center; justify-content: center;
-            font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
-            font-weight: bold; 
             width: 45px; height: 45px; flex-shrink: 0; box-sizing: border-box;
         }
-        .line-icon-main.icon-rer { border-radius: 10px; font-size: 28px; } 
-        .line-icon-main.icon-m { border-radius: 50%; font-size: 26px; }
+
+        /* Règle CSS magique pour forcer les SVG injectés à prendre la bonne taille */
+        .line-icon-main svg, .header-line-logo svg {
+            width: 100%; height: 100%; display: block;
+        }
 
         /* --- BADGE INCIDENT / TRAVAUX --- */
         .badge-dynamic {
@@ -137,28 +134,6 @@
             object-fit: contain;
             box-sizing: content-box; 
         }
-
-        /* Codes couleurs extraits de l'image officielle */
-        .bg-rer-a { background-color: #CE283C; color: white; }
-        .bg-rer-b { background-color: #5780B8; color: white; }
-        .bg-rer-c { background-color: #F2C94C; color: black; }
-        .bg-rer-d { background-color: #1A865B; color: white; }
-        .bg-rer-e { background-color: #9A4F8A; color: white; }
-
-        .bg-m1 { background-color: #F5C946; color: black; }
-        .bg-m2 { background-color: #2163A0; color: white; }
-        .bg-m3 { background-color: #92953F; color: white; }
-        .bg-m4 { background-color: #9E4A86; color: white; }
-        .bg-m5 { background-color: #D97E4A; color: black; }
-        .bg-m6 { background-color: #75B581; color: black; }
-        .bg-m7 { background-color: #E695A6; color: black; }
-        .bg-m8 { background-color: #B496BD; color: black; }
-        .bg-m9 { background-color: #B9BA44; color: black; }
-        .bg-m10 { background-color: #D4A849; color: black; }
-        .bg-m11 { background-color: #7D5A37; color: white; }
-        .bg-m12 { background-color: #14845F; color: white; }
-        .bg-m13 { background-color: #8AC7CB; color: black; }
-        .bg-m14 { background-color: #48286C; color: white; }
 
         .info-scroll-container { flex-grow: 1; height: 100%; display: flex; align-items: center; overflow: hidden; position: relative; }
         
@@ -198,7 +173,12 @@
 
 <header>
     <div class="header-left">
-        <div class="logos-container"><div class="logo-rer">RER</div><div class="logo-a">A</div></div>
+        <div class="logos-container">
+            <div class="logo-rer">RER</div>
+            <div id="header-logo-a" class="header-line-logo">
+                <div style="background:var(--red-a);width:100%;height:100%;border-radius:10px;color:white;display:flex;align-items:center;justify-content:center;font-size:34px;font-weight:bold;font-family:Arial,sans-serif;">A</div>
+            </div>
+        </div>
         <div class="station-info">
             <div class="station-name">JOINVILLE-LE-PONT</div>
             <div class="direction-info">Paris · St-Germain-en-Laye · Poissy · Cergy</div>
@@ -244,18 +224,46 @@
 
     let currentTrainsData = [];
     let isAnimating = false;
-    let displayQueue = [{text: DEFAULT_MSG, type: 'default', line: null}];
+    let displayQueue = [{text: DEFAULT_MSG, type: 'default', line: null, lineId: null}];
     let queueIndex = 0;
+    
+    // NOUVEAU : Dictionnaire pour stocker les icônes SVG téléchargées
+    const iconCache = {};
 
     function updateClock() {
         document.getElementById('clock').innerText = new Date().toLocaleTimeString('fr-FR', {hour: '2-digit', minute:'2-digit'});
+    }
+
+    // NOUVEAU : Fonction pour appeler l'API iLICO
+    async function fetchLineIcon(lineId) {
+        if (!lineId || iconCache[lineId]) return; // Si déjà en cache, on ignore
+        
+        const url = `https://prim.iledefrance-mobilites.fr/marketplace/ilico/getIcon/${lineId}`;
+        const proxy = `https://corsproxy.io/?${encodeURIComponent(url)}`;
+        
+        try {
+            const response = await fetch(proxy, { headers: { 'apikey': API_KEY, 'Accept': 'image/svg+xml' } });
+            if (response.ok) {
+                iconCache[lineId] = await response.text();
+            }
+        } catch (e) { 
+            console.error('Erreur lors du téléchargement de l\'icône :', e);
+        }
+    }
+
+    // NOUVEAU : Initialisation du logo officiel principal (Header) au chargement
+    async function initMainLogo() {
+        await fetchLineIcon('C01742'); // ID du RER A
+        if (iconCache['C01742']) {
+            document.getElementById('header-logo-a').innerHTML = iconCache['C01742'];
+        }
     }
 
     async function fetchGlobalTraffic() {
         const debugNode = document.getElementById('debug-traffic');
         const lineIds = Object.keys(LINE_MAP);
         
-        let newQueue = [{text: DEFAULT_MSG, type: 'default', line: null}];
+        let newQueue = [{text: DEFAULT_MSG, type: 'default', line: null, lineId: null}];
         let successCount = 0;
 
         for (const id of lineIds) {
@@ -277,21 +285,17 @@
                         let text = short ? short.MessageText.value : (msgs[0]?.MessageText?.value || "");
 
                         if (text) {
-                            // On passe le texte en minuscules pour faciliter la recherche
                             const lowerText = text.toLowerCase();
-                            
                             const isRERA = (id === 'C01742');
                             const isIncidentAPI = (channel === "Perturbation");
                             const isWorkAPI = (channel === "PlannedWork");
                             
-                            // On détecte intelligemment les travaux même si l'API dit "Perturbation"
                             const isTextWorks = lowerText.includes("travaux") || lowerText.includes("tvx");
 
-                            // On affiche si c'est la ligne du RER A OU s'il y a une perturbation/travaux sur une autre ligne
                             if (isRERA || isIncidentAPI || isWorkAPI || isTextWorks) {
-                                // Si c'est des travaux (API ou texte), c'est un cône. Sinon, un incident.
                                 let type = (isWorkAPI || isTextWorks) ? 'works' : 'incident';
-                                newQueue.push({text: text, type: type, line: LINE_MAP[id]});
+                                // Ajout de la clé lineId pour le téléchargement de l'icône
+                                newQueue.push({text: text, type: type, line: LINE_MAP[id], lineId: id});
                             }
                         }
                     });
@@ -302,6 +306,11 @@
         if (successCount > 0) {
             displayQueue = Array.from(new Set(newQueue.map(a => JSON.stringify(a)))).map(a => JSON.parse(a));
             debugNode.innerHTML = `<span class="api-ok">API TRAFFIC OK (${displayQueue.length-1} alertes)</span>`;
+            
+            // NOUVEAU : Précharger toutes les icônes nécessaires pour ne pas créer de lenteur à l'affichage
+            for (let item of displayQueue) {
+                if (item.lineId) await fetchLineIcon(item.lineId);
+            }
         } else {
             debugNode.innerHTML = `<span class="api-ko">API TRAFFIC : ERREUR RÉSEAU</span>`;
         }
@@ -331,35 +340,30 @@
             iconWorks.style.display = 'none';
             wrapperDyn.style.display = 'none';
             badgeDyn.style.display = 'none';
-            
-            // Retrait de la classe clignotante par défaut
             badgeDyn.classList.remove('blinking');
 
             if (current.type === 'default') {
                 iconStd.style.display = 'flex';
-            } else if (current.line) {
-                const isRer = current.line.startsWith('RER');
-                const shortName = current.line.replace('RER ', '').replace('M', ''); 
-                const shapeClass = isRer ? 'icon-rer' : 'icon-m';
-                const colorClass = `bg-${current.line.replace(' ', '-').toLowerCase()}`; 
+            } 
+            // On vérifie que la ligne est définie et que le SVG est bien en cache
+            else if (current.lineId && iconCache[current.lineId]) { 
                 
-                iconDyn.className = `line-icon-main ${shapeClass} ${colorClass}`;
-                iconDyn.innerText = shortName;
+                // INJECTION DU SVG DE L'API OFFICIELLE !
+                iconDyn.innerHTML = iconCache[current.lineId];
                 
                 wrapperDyn.style.display = 'flex';
 
                 if (current.type === 'incident') {
-                    // Logo Point d'exclamation jaune
                     badgeDyn.src = "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect x='5' y='5' width='90' height='90' rx='20' fill='%23F2C94C' stroke='%231A1A1A' stroke-width='10'/><path d='M42 25 h16 l-2 35 h-12 z' fill='%231A1A1A'/><circle cx='50' cy='75' r='8' fill='%231A1A1A'/></svg>";
                     badgeDyn.style.display = 'block';
                     badgeDyn.classList.add('blinking'); 
                 } else if (current.type === 'works') {
-                    // Nouveau logo Cône de chantier (ne clignote pas)
                     badgeDyn.src = "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect x='5' y='5' width='90' height='90' rx='20' fill='%23CA553C' stroke='%231A1A1A' stroke-width='10'/><path d='M44 34 L56 34 L53 22 C52 18 48 18 47 22 Z' fill='white'/><polygon points='39,55 61,55 57,40 43,40' fill='white'/><path d='M34 61 L66 61 L68 68 C76 68 76 80 66 80 L34 80 C24 80 24 68 32 68 Z' fill='white'/></svg>";
                     badgeDyn.style.display = 'block';
                 }
 
             } else {
+                // Fallback de sécurité au cas où l'API iLICO ne répondrait pas
                 if (current.type === 'incident') iconInc.style.display = 'block';
                 else if (current.type === 'works') iconWorks.style.display = 'block';
             }
@@ -454,6 +458,7 @@
         }).join('');
     }
 
+    initMainLogo(); // Initialisation de l'icône Header au lancement
     setInterval(updateClock, 1000);
     updateClock();
     fetchSchedules();
